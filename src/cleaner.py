@@ -44,14 +44,16 @@ def analyze_missing_summary(df: pd.DataFrame, top_values: int = 3) -> pd.DataFra
                 if len(sample_values) >= top_values:
                     break
 
-        rows.append({
-            "column": col,
-            "missing_count": missing,
-            "missing_pct": missing_pct,
-            "dtype": dtype,
-            "unique_count": unique_count,
-            "sample_values": sample_values,
-        })
+        rows.append(
+            {
+                "column": col,
+                "missing_count": missing,
+                "missing_pct": missing_pct,
+                "dtype": dtype,
+                "unique_count": unique_count,
+                "sample_values": sample_values,
+            }
+        )
 
     result = pd.DataFrame(rows)
     result = result.sort_values("missing_pct", ascending=False).reset_index(drop=True)
@@ -60,12 +62,14 @@ def analyze_missing_summary(df: pd.DataFrame, top_values: int = 3) -> pd.DataFra
 
 if __name__ == "__main__":
     # small demo when run directly
-    demo = pd.DataFrame({
-        "id": [1, 2, 3, 4, None],
-        "name": ["Alice", "Bob", None, "Diana", "Eve"],
-        "age": [25, None, 37, 29, 40],
-        "city": ["NY", "SF", "NY", None, "LA"],
-    })
+    demo = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, None],
+            "name": ["Alice", "Bob", None, "Diana", "Eve"],
+            "age": [25, None, 37, 29, 40],
+            "city": ["NY", "SF", "NY", None, "LA"],
+        }
+    )
     print("Input DataFrame:\n", demo)
     summary = analyze_missing_summary(demo)
     print("\nMissing summary:\n", summary)

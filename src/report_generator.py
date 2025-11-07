@@ -16,14 +16,17 @@ def generate_pdf_report(
     generated_by: Optional[str] = None,
 ) -> None:
     """
-    Generate a styled PDF summary report from a DataFrame produced by `analyze_missing_summary`.
+        Generate a styled PDF summary report from a DataFrame produced by
+        `analyze_missing_summary`.
 
-    Parameters:
-      summary_df: DataFrame with columns at least ["column","missing_pct","missing_count","dtype","unique_count","sample_values"]
-      output_path: path to write the PDF file
-      title: report title
-      dataset_name: optional dataset identifier to display in header
-      generated_by: optional author or runner info
+        Parameters:
+            summary_df: DataFrame with columns at least:
+                ["column", "missing_pct", "missing_count", "dtype", "unique_count",
+                 "sample_values"]
+            output_path: path to write the PDF file
+            title: report title
+            dataset_name: optional dataset identifier to display in header
+            generated_by: optional author or runner info
     """
     doc = SimpleDocTemplate(output_path, pagesize=letter)
     styles = getSampleStyleSheet()
@@ -33,7 +36,11 @@ def generate_pdf_report(
     elements.append(Paragraph(title, styles["Title"]))
 
     # Meta information
-    meta_lines = [f"Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')} UTC"]
+    # use timezone-aware timestamp to avoid deprecated utcnow()
+    generated_ts = datetime.datetime.now(datetime.timezone.utc)
+    meta_lines = [
+        f"Generated: {generated_ts.strftime('%Y-%m-%d %H:%M:%SZ')} UTC"
+    ]
     if dataset_name:
         meta_lines.append(f"Dataset: {dataset_name}")
     if generated_by:
@@ -54,30 +61,34 @@ def generate_pdf_report(
         if len(examples_str) > 200:
             examples_str = examples_str[:197] + "..."
 
-        data.append([
-            str(row.get("column", "")),
-            f"{row.get('missing_pct', 0)}%",
-            str(row.get("missing_count", "")),
-            str(row.get("dtype", "")),
-            str(row.get("unique_count", "")),
-            examples_str,
-        ])
+        data.append(
+            [
+                str(row.get("column", "")),
+                f"{row.get('missing_pct', 0)}%",
+                str(row.get("missing_count", "")),
+                str(row.get("dtype", "")),
+                str(row.get("unique_count", "")),
+                examples_str,
+            ]
+        )
 
     # Table styling
     col_widths = [120, 60, 70, 70, 60, 160]
     table = Table(data, colWidths=col_widths, repeatRows=1)
-    style = TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003f5c")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("ALIGN", (1, 1), (-2, -1), "RIGHT"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-    ])
+    style = TableStyle(
+        [
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003f5c")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ALIGN", (1, 1), (-2, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]
+    )
     table.setStyle(style)
 
     elements.append(table)
@@ -89,11 +100,29 @@ def generate_pdf_report(
 if __name__ == "__main__":
     # quick demo: build PDF from a tiny DataFrame
     try:
-        sample = pd.DataFrame([
-            {"column": "id", "missing_pct": 0.0, "missing_count": 0, "dtype": "int64", "unique_count": 5, "sample_values": [1, 2, 3]},
-            {"column": "name", "missing_pct": 20.0, "missing_count": 1, "dtype": "object", "unique_count": 4, "sample_values": ["Alice", "Bob"]},
-        ])
-        generate_pdf_report(sample, "report_demo.pdf", title="Demo Data Summary", dataset_name="demo")
+        sample = pd.DataFrame(
+            [
+                {
+                    "column": "id",
+                    "missing_pct": 0.0,
+                    "missing_count": 0,
+                    "dtype": "int64",
+                    "unique_count": 5,
+                    "sample_values": [1, 2, 3],
+                },
+                {
+                    "column": "name",
+                    "missing_pct": 20.0,
+                    "missing_count": 1,
+                    "dtype": "object",
+                    "unique_count": 4,
+                    "sample_values": ["Alice", "Bob"],
+                },
+            ]
+        )
+        generate_pdf_report(
+            sample, "report_demo.pdf", title="Demo Data Summary", dataset_name="demo"
+        )
         print("Wrote report_demo.pdf")
     except Exception as e:
         print("Failed to generate demo PDF:", e)
