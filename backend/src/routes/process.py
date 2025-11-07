@@ -1,10 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
-import shutil
 import uuid
-import pandas as pd
-import os
 
 from .. import cleaner as cleaner_mod
 from .. import report_generator as report_mod
@@ -62,7 +59,9 @@ async def process_upload(file: UploadFile = File(...)):
     json_path = REPORTS_DIR / json_name
 
     try:
-        report_mod.generate_pdf_report(summary, str(report_path), title=f"Summary: {file.filename}")
+        report_mod.generate_pdf_report(
+            summary, str(report_path), title=f"Summary: {file.filename}"
+        )
         report_mod.save_json_summary(summary, str(json_path))
     except Exception as e:
         logger.exception("Failed to generate report: %s", e)

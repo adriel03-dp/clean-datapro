@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pathlib import Path
 import json
 from typing import List, Dict, Any
@@ -29,8 +29,10 @@ def _read_json_summaries() -> List[Dict[str, Any]]:
 
 @router.get("/runs")
 def list_runs(limit: int = 50):
-    """Return recent processing runs. If MongoDB is configured, read from `clean_runs` collection.
-    Otherwise return JSON summaries found in `reports/`.
+    """Return recent processing runs.
+
+    If MongoDB is configured, read from the `clean_runs` collection. Otherwise
+    return JSON summaries found in `reports/`.
     """
     if MONGODB_URI:
         client = None
