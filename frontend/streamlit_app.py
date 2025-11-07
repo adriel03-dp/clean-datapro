@@ -11,8 +11,9 @@ st.set_page_config(page_title="CleanDataPro - Demo", layout="wide")
 st.title("CleanDataPro — Upload & Clean CSV")
 
 st.markdown(
-    "Upload a CSV file and the backend will clean it, generate a PDF report and JSON summary.\n"
-    "You can download the cleaned CSV and report after processing."
+    "Upload a CSV file and the backend will clean it, generate a PDF report "
+    "and JSON summary.\nYou can download the cleaned CSV and report after "
+    "processing."
 )
 
 uploaded = st.file_uploader("Choose a CSV file", type=["csv"])
@@ -21,7 +22,10 @@ if uploaded is not None:
     st.info("Uploading and processing — this may take a few seconds...")
     files = {"file": (uploaded.name, uploaded.getvalue(), "text/csv")}
     try:
-        resp = requests.post(f"{BACKEND_BASE}/api/process", files=files)
+        resp = requests.post(
+            f"{BACKEND_BASE}/api/process",
+            files=files,
+        )
     except Exception as e:
         st.error(f"Failed to call backend: {e}")
         st.stop()
@@ -39,7 +43,9 @@ if uploaded is not None:
     with col1:
         st.write("Original rows:", data.get("summary", {}).get("original_rows"))
         st.write("Cleaned rows:", data.get("summary", {}).get("cleaned_rows"))
-        st.write("Dropped duplicates:", data.get("summary", {}).get("dropped_duplicates"))
+        st.write(
+            "Dropped duplicates:", data.get("summary", {}).get("dropped_duplicates")
+        )
 
     # Show missing% bar chart (before)
     before = data.get("summary", {}).get("missing_summary_before", [])
@@ -52,16 +58,24 @@ if uploaded is not None:
         if not df_before.empty:
             st.subheader("Missing % by column — Before vs After")
             merged = pd.merge(
-                df_before[["column", "missing_pct"]].rename(columns={"missing_pct": "before_pct"}),
-                df_after[["column", "missing_pct"]].rename(columns={"missing_pct": "after_pct"}),
+                df_before[["column", "missing_pct"]].rename(
+                    columns={"missing_pct": "before_pct"}
+                ),
+                df_after[["column", "missing_pct"]].rename(
+                    columns={"missing_pct": "after_pct"}
+                ),
                 on="column",
                 how="outer",
             ).fillna(0)
 
-            fig = px.bar(merged.melt(id_vars=["column"], value_vars=["before_pct", "after_pct"]),
-                         x="column", y="value", color="variable",
-                         labels={"value": "Missing %", "variable": "Stage"},
-                         title="Missing % before vs after")
+            fig = px.bar(
+                merged.melt(id_vars=["column"], value_vars=["before_pct", "after_pct"]),
+                x="column",
+                y="value",
+                color="variable",
+                labels={"value": "Missing %", "variable": "Stage"},
+                title="Missing % before vs after",
+            )
             st.plotly_chart(fig, use_container_width=True)
 
     # Show artifact download links
