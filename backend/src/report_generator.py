@@ -1,16 +1,15 @@
 import datetime
 import json
-from typing import Optional
 from pathlib import Path
-
-import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 
-def generate_pdf_report(summary: dict, output_path: str, title: str = "Data Summary Report") -> None:
+def generate_pdf_report(
+    summary: dict, output_path: str, title: str = "Data Summary Report"
+) -> None:
     """
     Generate a simple PDF report summarizing cleaning results.
 
@@ -24,7 +23,9 @@ def generate_pdf_report(summary: dict, output_path: str, title: str = "Data Summ
     elements = []
 
     elements.append(Paragraph(title, styles["Title"]))
-    meta = [f"Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')} UTC"]
+    meta = [
+        f"Generated: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')} UTC",
+    ]
     meta.append(f"Original rows: {summary.get('original_rows')}")
     meta.append(f"Cleaned rows: {summary.get('cleaned_rows')}")
     meta.append(f"Dropped duplicates: {summary.get('dropped_duplicates')}")
@@ -37,8 +38,8 @@ def generate_pdf_report(summary: dict, output_path: str, title: str = "Data Summ
     headers = ["Column", "Missing % (before)", "Missing % (after)", "Dtype (after)"]
     data = [headers]
 
-    before = {r['column']: r for r in summary.get('missing_summary_before', [])}
-    after = {r['column']: r for r in summary.get('missing_summary_after', [])}
+    before = {r["column"]: r for r in summary.get("missing_summary_before", [])}
+    after = {r["column"]: r for r in summary.get("missing_summary_after", [])}
 
     for col in sorted(set(list(before.keys()) + list(after.keys()))):
         b = before.get(col, {})
@@ -47,18 +48,20 @@ def generate_pdf_report(summary: dict, output_path: str, title: str = "Data Summ
             col,
             f"{b.get('missing_pct', '')}%",
             f"{a.get('missing_pct', '')}%",
-            a.get('dtype', ''),
+            a.get("dtype", ""),
         ]
         data.append(row)
 
     table = Table(data, colWidths=[150, 100, 100, 150], repeatRows=1)
-    style = TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003f5c")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-    ])
+    style = TableStyle(
+        [
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003f5c")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ]
+    )
     table.setStyle(style)
     elements.append(table)
 

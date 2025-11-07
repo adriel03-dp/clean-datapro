@@ -26,13 +26,18 @@ logger = get_logger("cleandatapro.backend")
 
 @app.on_event("startup")
 def startup_event():
-    """Attempt to establish a MongoDB connection at startup and log result (best-effort)."""
+    """Try to establish a MongoDB connection at startup and log the result.
+
+    This is best-effort: the app continues if MongoDB is unavailable.
+    """
     try:
         ok = cfg.test_mongo_connection()
         if ok:
             logger.info("MongoDB connection OK")
         else:
-            logger.warning("MongoDB not available or MONGODB_URI not set; continuing without DB")
+            logger.warning(
+                "MongoDB not available or MONGODB_URI not set; continuing"
+            )
     except Exception as e:
         logger.warning("Error while testing MongoDB connection: %s", e)
 

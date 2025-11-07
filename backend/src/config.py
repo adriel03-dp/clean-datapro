@@ -6,6 +6,7 @@ from typing import Optional, Callable, Any
 load_dotenv: Optional[Callable[..., Any]] = None
 try:
     from dotenv import load_dotenv  # type: ignore
+
     _DOTENV_AVAILABLE = True
 except Exception:
     load_dotenv = None  # type: ignore
@@ -23,9 +24,11 @@ MONGODB_URI: Optional[str] = os.environ.get("MONGODB_URI")
 # optional helper to get a pymongo client if pymongo is installed and MONGODB_URI is set
 try:
     from pymongo import MongoClient  # type: ignore
+
     try:
         # ServerApi is optional; use if available to set Stable API
         from pymongo.server_api import ServerApi  # type: ignore
+
         _SERVER_API_AVAILABLE = True
     except Exception:
         ServerApi = None  # type: ignore
@@ -37,8 +40,9 @@ except Exception:
 def get_mongo_client():
     """Return a cached pymongo.MongoClient connected to MONGODB_URI or None.
 
-    If `python-dotenv` loaded a `MONGODB_URI`, this creates a MongoClient once and returns it.
-    If pymongo is not installed but a URI is provided, raises RuntimeError.
+    If `python-dotenv` loaded a `MONGODB_URI`, this creates a MongoClient
+    once and returns it. If pymongo is not installed but a URI is provided,
+    raises RuntimeError.
     """
     # cache client to avoid reconnecting on every call
     global _CLIENT
@@ -49,7 +53,9 @@ def get_mongo_client():
         return None
 
     if MongoClient is None:
-        raise RuntimeError("pymongo is not installed; install pymongo to use MongoDB features")
+        raise RuntimeError(
+            "pymongo is not installed; install pymongo to use MongoDB features"
+        )
 
     if _CLIENT is not None:
         return _CLIENT
@@ -57,20 +63,26 @@ def get_mongo_client():
     # create client with optional ServerApi for stable API behaviour
     try:
         if _SERVER_API_AVAILABLE and ServerApi is not None:
-            _CLIENT = MongoClient(MONGODB_URI, server_api=ServerApi("1"))
+            _CLIENT = MongoClient(
+                MONGODB_URI,
+                server_api=ServerApi("1"),
+            )
         else:
-            _CLIENT = MongoClient(MONGODB_URI)
+            _CLIENT = MongoClient(
+                MONGODB_URI,
+            )
     except Exception:
-        # if client creation fails, ensure we return None so callers handle it gracefully
+        # if client creation fails, return None so callers handle it
+        # (keeps behavior simple and non-fatal)
         _CLIENT = None
 
     return _CLIENT
 
 
 def test_mongo_connection(timeout: int = 5) -> bool:
-    """Try to ping the MongoDB server, return True if reachable.
+    """Try to ping the MongoDB server and return True if reachable.
 
-    This is a simple helper used at application startup to log connectivity.
+    This helper is used at application startup to log connectivity.
     """
     client = None
     try:

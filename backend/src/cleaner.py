@@ -1,9 +1,6 @@
 from typing import Any, Dict, Tuple
 from pathlib import Path
 import pandas as pd
-import numpy as np
-
-from . import report_generator  # type: ignore
 
 
 def analyze_missing_summary(df: pd.DataFrame, top_values: int = 3) -> pd.DataFrame:
@@ -29,14 +26,16 @@ def analyze_missing_summary(df: pd.DataFrame, top_values: int = 3) -> pd.DataFra
                 if len(sample_values) >= top_values:
                     break
 
-        rows.append({
-            "column": col,
-            "missing_count": missing,
-            "missing_pct": missing_pct,
-            "dtype": dtype,
-            "unique_count": unique_count,
-            "sample_values": sample_values,
-        })
+        rows.append(
+            {
+                "column": col,
+                "missing_count": missing,
+                "missing_pct": missing_pct,
+                "dtype": dtype,
+                "unique_count": unique_count,
+                "sample_values": sample_values,
+            }
+        )
 
     result = pd.DataFrame(rows)
     result = result.sort_values("missing_pct", ascending=False).reset_index(drop=True)
@@ -67,7 +66,9 @@ def _fill_column(s: pd.Series) -> pd.Series:
     return s.fillna("")
 
 
-def clean_dataframe(df: pd.DataFrame, drop_duplicates: bool = True) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+def clean_dataframe(
+    df: pd.DataFrame, drop_duplicates: bool = True
+) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
     Clean a DataFrame and return (cleaned_df, summary_dict).
 
@@ -129,11 +130,16 @@ def clean_dataframe(df: pd.DataFrame, drop_duplicates: bool = True) -> Tuple[pd.
     return working, summary
 
 
-def clean_csv(input_path: str, output_path: str, drop_duplicates: bool = True) -> Dict[str, Any]:
+def clean_csv(
+    input_path: str, output_path: str, drop_duplicates: bool = True
+) -> Dict[str, Any]:
     """
-    Read CSV from `input_path`, clean it, write cleaned CSV to `output_path`, and return a summary dict.
+    Read CSV from `input_path`, clean it, write cleaned CSV to `output_path`,
+    and return a summary dict.
 
-    Summary includes keys: rows, columns, missing_pct, numeric_cols, categorical_cols and the detailed summary from clean_dataframe.
+    Summary includes keys such as rows, columns, missing_pct, numeric_cols and
+    categorical_cols plus the detailed cleaning summary returned by
+    `clean_dataframe`.
     """
     p_in = Path(input_path)
     p_out = Path(output_path)
@@ -151,7 +157,12 @@ def clean_csv(input_path: str, output_path: str, drop_duplicates: bool = True) -
     missing_cells = int(df.isna().sum().sum())
     missing_pct = round((missing_cells / total_cells) * 100, 2) if total_cells else 0.0
 
-    numeric_cols = int(sum(pd.api.types.is_numeric_dtype(df[c]) for c in df.columns))
+    numeric_cols = int(
+        sum(
+            pd.api.types.is_numeric_dtype(df[c]) for c in df.columns
+        )
+    )
+
     categorical_cols = int(len(df.columns) - numeric_cols)
 
     summary = {
@@ -169,11 +180,19 @@ def clean_csv(input_path: str, output_path: str, drop_duplicates: bool = True) -
 
 if __name__ == "__main__":
     # quick demo
-    df = pd.DataFrame({
-        "a": [1, 2, None, 2, 1],
-        "b": ["x", None, "y", "x", "x"],
-        "c": [pd.NaT, pd.Timestamp("2020-01-01"), pd.NaT, pd.Timestamp("2020-01-02"), pd.NaT],
-    })
+    df = pd.DataFrame(
+        {
+            "a": [1, 2, None, 2, 1],
+            "b": ["x", None, "y", "x", "x"],
+            "c": [
+                pd.NaT,
+                pd.Timestamp("2020-01-01"),
+                pd.NaT,
+                pd.Timestamp("2020-01-02"),
+                pd.NaT,
+            ],
+        }
+    )
     clean, s = clean_dataframe(df)
     print("Summary:", s)
     print(clean)
