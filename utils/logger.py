@@ -7,11 +7,15 @@ except Exception:  # keep fallback if rich isn't installed yet
     RichHandler = None  # type: ignore
 
 
-def get_logger(name: str = __name__, level: int = logging.INFO, use_rich: Optional[bool] = True) -> logging.Logger:
-    """
-    Return a configured logger.
+def get_logger(
+    name: str = __name__,
+    level: int = logging.INFO,
+    use_rich: Optional[bool] = True,
+) -> logging.Logger:
+    """Return a configured logger.
 
-    If `rich` is installed and `use_rich` is True, uses RichHandler for nicer console output.
+    Uses RichHandler for nicer console output when `rich` is installed and
+    `use_rich` is True. Falls back to a standard stream handler otherwise.
     """
     handlers = []
     if use_rich and RichHandler is not None:
@@ -21,7 +25,14 @@ def get_logger(name: str = __name__, level: int = logging.INFO, use_rich: Option
         handler = logging.StreamHandler()
         handlers.append(handler)
 
-    logging.basicConfig(level=level, format="%(message)s", handlers=handlers)
+    # configure basic logging using handlers created above
+    fmt = "%(message)s"
+    logging.basicConfig(
+        level=level,
+        format=fmt,
+        handlers=handlers,
+    )
+
     logger = logging.getLogger(name)
     logger.setLevel(level)
     return logger
