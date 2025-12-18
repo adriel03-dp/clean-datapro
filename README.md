@@ -334,5 +334,5 @@ For questions and support, please open an issue on GitHub.
 
 ---
 
-Made with ❤️ by the CleanDataPro team
+Made by Adriel Perera
 
