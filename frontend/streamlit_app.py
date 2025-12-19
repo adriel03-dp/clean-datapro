@@ -276,58 +276,225 @@ if page == "🚀 Upload & Clean":
 
 # Page: Analytics
 elif page == "📈 Analytics":
-    st.header("📈 Advanced Analytics")
+    st.header("📈 Advanced Analytics Dashboard")
     
     if st.session_state.last_result:
         data = st.session_state.last_result
         summary = data.get("summary", {})
         
-        col1, col2 = st.columns(2)
+        # ========== TOP METRICS SECTION ==========
+        st.subheader("📊 Key Metrics Overview")
+        metric_cols = st.columns(5)
+        
+        with metric_cols[0]:
+            st.metric("📥 Original Rows", f"{summary.get('original_rows', 0):,}")
+        
+        with metric_cols[1]:
+            st.metric("✅ Cleaned Rows", f"{summary.get('cleaned_rows', 0):,}")
+        
+        with metric_cols[2]:
+            st.metric("📋 Total Columns", f"{summary.get('columns', 0)}")
+        
+        with metric_cols[3]:
+            missing_before = summary.get("missing_before", 0)
+            missing_after = summary.get("missing_after", 0)
+            st.metric("🩹 Issues Fixed", f"{missing_before - missing_after:,}")
+        
+        with metric_cols[4]:
+            improvement = 0
+            if summary.get("missing_before", 0) > 0:
+                improvement = ((summary.get("missing_before", 0) - summary.get("missing_after", 0)) / summary.get("missing_before", 0)) * 100
+            st.metric("⬆️ Quality Improvement", f"{improvement:.1f}%")
+        
+        st.markdown("---")
+        
+        # ========== CLEANING IMPACT SECTION ==========
+        st.subheader("🎯 Cleaning Impact Analysis")
+        
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.subheader("Cleaning Impact")
+            st.write("**Data Loss Overview**")
             before_total = summary.get("missing_before", 0)
             after_total = summary.get("missing_after", 0)
             
             if before_total > 0:
-                improvement = ((before_total - after_total) / before_total) * 100
+                fixed = before_total - after_total
+                improvement_pct = (fixed / before_total) * 100
                 fig = go.Figure(data=[
                     go.Pie(
                         labels=["Fixed", "Remaining"],
-                        values=[before_total - after_total, after_total],
+                        values=[fixed, after_total],
                         hole=0.4,
-                        marker=dict(colors=["#00cc96", "#ef553b"])
+                        marker=dict(colors=["#00cc96", "#ef553b"]),
+                        hovertemplate="<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>"
                     )
                 ])
-                fig.update_layout(height=400)
+                fig.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=0))
                 st.plotly_chart(fig, use_container_width=True)
-                
-                st.metric("Data Quality Improvement", f"{improvement:.1f}%")
+            else:
+                st.info("No missing values to fix")
         
         with col2:
-            st.subheader("Row Statistics")
+            st.write("**Row Statistics**")
+            original = summary.get("original_rows", 0)
+            duplicates = summary.get("dropped_duplicates", 0)
+            cleaned = summary.get("cleaned_rows", 0)
+            
             rows_data = {
-                "Category": ["Original", "Duplicates", "Final"],
-                "Count": [
-                    summary.get("original_rows", 0),
-                    summary.get("dropped_duplicates", 0),
-                    summary.get("cleaned_rows", 0)
-                ]
+                "Stage": ["Original", "Duplicates\nRemoved", "Final Clean"],
+                "Count": [original, duplicates, cleaned]
             }
             df_rows = pd.DataFrame(rows_data)
             
             fig = px.bar(
                 df_rows,
-                x="Category",
+                x="Stage",
                 y="Count",
                 text="Count",
-                color="Category",
+                color="Stage",
                 color_discrete_sequence=["#667eea", "#ef553b", "#00cc96"]
             )
-            fig.update_layout(height=400, showlegend=False)
+            fig.update_traces(textposition='outside')
+            fig.update_layout(height=400, showlegend=False, margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig, use_container_width=True)
+        
+        with col3:
+            st.write("**Column Types**")
+            numeric = summary.get("numeric_cols", 0)
+            categorical = summary.get("categorical_cols", 0)
+            
+            if numeric + categorical > 0:
+                fig = go.Figure(data=[
+                    go.Bar(
+                        x=["Numeric", "Categorical"],
+                        y=[numeric, categorical],
+                        text=[numeric, categorical],
+                        textposition='outside',
+                        marker=dict(color=["#00cc96", "#667eea"])
+                    )
+                ])
+                fig.update_layout(height=400, showlegend=False, 
+                                 xaxis_title="", yaxis_title="Count",
+                                 margin=dict(l=0, r=0, t=30, b=0))
+                st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # ========== COLUMN-WISE ANALYSIS ==========
+        st.subheader("🔍 Column-Wise Data Quality Analysis")
+        
+        before_list = summary.get("missing_summary_before", [])
+        after_list = summary.get("missing_summary_after", [])
+        
+        if before_list and after_list:
+            df_before = pd.DataFrame(before_list)
+            df_after = pd.DataFrame(after_list)
+            
+            # Merge data for comparison
+            merged = pd.merge(
+                df_before[["column", "missing_pct", "dtype", "unique_count"]].rename(
+                    columns={"missing_pct": "Missing Before (%)"}
+                ),
+                df_after[["column", "missing_pct"]].rename(
+                    columns={"missing_pct": "Missing After (%)"}
+                ),
+                on="column",
+                how="outer"
+            ).fillna(0)
+            
+            # 1. Missing Value Trend Chart
+            fig_missing = px.bar(
+                merged.melt(id_vars=["column"], 
+                           value_vars=["Missing Before (%)", "Missing After (%)"]),
+                x="column",
+                y="value",
+                color="variable",
+                labels={"value": "Missing Percentage (%)", "variable": "Stage"},
+                title="Missing Values: Before vs After Cleaning",
+                barmode="group",
+                color_discrete_map={
+                    "Missing Before (%)": "#ef553b",
+                    "Missing After (%)": "#00cc96"
+                }
+            )
+            fig_missing.update_layout(height=400, hovermode="x unified",
+                                     xaxis_tickangle=-45)
+            st.plotly_chart(fig_missing, use_container_width=True)
+            
+            # 2. Detailed Column Stats Table
+            with st.expander("📋 Detailed Column Statistics"):
+                display_data = merged.copy()
+                display_data["Data Type"] = display_data["dtype"]
+                display_data["Unique Count"] = display_data["unique_count"].astype(int)
+                display_data["Improvement"] = (
+                    display_data["Missing Before (%)"] - display_data["Missing After (%)"]
+                ).round(2)
+                
+                st.dataframe(
+                    display_data[[
+                        "column", "Data Type", "Unique Count",
+                        "Missing Before (%)", "Missing After (%)", "Improvement"
+                    ]].rename(columns={"column": "Column"}),
+                    use_container_width=True,
+                    hide_index=True
+                )
+            
+            # 3. Data Quality Score by Column
+            merged["Quality Score"] = 100 - merged["Missing After (%)"]
+            
+            fig_quality = px.bar(
+                merged.sort_values("Quality Score"),
+                x="Quality Score",
+                y="column",
+                orientation="h",
+                color="Quality Score",
+                color_continuous_scale="RdYlGn",
+                range_color=[0, 100],
+                title="Data Quality Score by Column",
+                labels={"column": "Column", "Quality Score": "Quality Score (%)"}
+            )
+            fig_quality.update_layout(height=400)
+            st.plotly_chart(fig_quality, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # ========== DATA COMPLETENESS HEATMAP ==========
+        st.subheader("🔥 Data Completeness Heatmap")
+        
+        if before_list:
+            heatmap_data = []
+            for col_info in before_list:
+                col_name = col_info.get("column", "")
+                missing_pct = 100 - col_info.get("missing_pct", 0)
+                heatmap_data.append({
+                    "Column": col_name,
+                    "Completeness (%)": missing_pct
+                })
+            
+            if heatmap_data:
+                df_heatmap = pd.DataFrame(heatmap_data)
+                
+                # Create heatmap-style visualization
+                fig_heatmap = px.bar(
+                    df_heatmap,
+                    x="Column",
+                    y="Completeness (%)",
+                    color="Completeness (%)",
+                    color_continuous_scale="Viridis",
+                    range_color=[0, 100],
+                    title="Data Completeness Level per Column",
+                    text="Completeness (%)"
+                )
+                fig_heatmap.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                fig_heatmap.update_layout(
+                    height=300,
+                    xaxis_tickangle=-45,
+                    coloraxis_colorbar=dict(title="Completeness %")
+                )
+                st.plotly_chart(fig_heatmap, use_container_width=True)
     else:
-        st.info("Upload and process a file first to see analytics")
+        st.info("📤 Upload and process a file first to see analytics")
 
 # Page: History
 elif page == "📜 Processing History":

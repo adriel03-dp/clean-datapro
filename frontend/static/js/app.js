@@ -395,6 +395,22 @@ function refreshAnalytics() {
     document.getElementById('analytics-empty').style.display = 'none';
     document.getElementById('analytics-content').style.display = 'block';
     
+    const summary = lastResult.summary || {};
+    
+    // Update metric cards
+    document.getElementById('analytics-metric-original').textContent = 
+        (summary.original_rows || 0).toLocaleString();
+    document.getElementById('analytics-metric-cleaned').textContent = 
+        (summary.cleaned_rows || 0).toLocaleString();
+    document.getElementById('analytics-metric-duplicates').textContent = 
+        (summary.dropped_duplicates || 0).toLocaleString();
+    
+    const beforeMissing = summary.missing_before || 0;
+    const afterMissing = summary.missing_after || 0;
+    const fixed = beforeMissing - afterMissing;
+    document.getElementById('analytics-metric-fixed').textContent = 
+        fixed.toLocaleString();
+    
     drawAnalyticsCharts();
 }
 
@@ -405,60 +421,163 @@ function drawAnalyticsCharts() {
     const after = summary.missing_after || 0;
     
     // Improvement pie chart
-    const improvementCtx = document.getElementById('improvement-chart').getContext('2d');
-    if (charts.improvement) charts.improvement.destroy();
-    
-    charts.improvement = new Chart(improvementCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Fixed', 'Remaining'],
-            datasets: [{
-                data: [before - after, after],
-                backgroundColor: ['rgba(0, 204, 150, 0.7)', 'rgba(239, 85, 59, 0.7)'],
-                borderColor: ['rgba(0, 204, 150, 1)', 'rgba(239, 85, 59, 1)'],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
+    const improvementCtx = document.getElementById('improvement-chart');
+    if (improvementCtx) {
+        if (charts.improvement) charts.improvement.destroy();
+        
+        const fixedCount = before - after;
+        const improvement = before > 0 ? ((fixedCount / before) * 100).toFixed(1) : 0;
+        
+        charts.improvement = new Chart(improvementCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: [`Fixed (${fixedCount})`, `Remaining (${after})`],
+                datasets: [{
+                    data: [fixedCount, after],
+                    backgroundColor: ['rgba(0, 204, 150, 0.8)', 'rgba(239, 85, 59, 0.8)'],
+                    borderColor: ['rgba(0, 204, 150, 1)', 'rgba(239, 85, 59, 1)'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = ((context.parsed / total) * 100).toFixed(1);
+                                return `${context.label}: ${pct}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
     
     // Rows bar chart
-    const rowsCtx = document.getElementById('rows-chart').getContext('2d');
-    if (charts.rows) charts.rows.destroy();
+    const rowsCtx = document.getElementById('rows-chart');
+    if (rowsCtx) {
+        if (charts.rows) charts.rows.destroy();
+        
+        charts.rows = new Chart(rowsCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Original Rows', 'Duplicates Removed', 'Final Clean'],
+                datasets: [{
+                    label: 'Count',
+                    data: [
+                        summary.original_rows || 0,
+                        summary.dropped_duplicates || 0,
+                        summary.cleaned_rows || 0
+                    ],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(239, 85, 59, 0.8)',
+                        'rgba(0, 204, 150, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(102, 126, 234, 1)',
+                        'rgba(239, 85, 59, 1)',
+                        'rgba(0, 204, 150, 1)'
+                    ],
+                    borderWidth: 2,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => value.toLocaleString()
+                        }
+                    }
+                }
+            }
+        });
+    }
     
-    charts.rows = new Chart(rowsCtx, {
-        type: 'bar',
-        data: {
-            labels: ['Original', 'Duplicates', 'Final'],
-            datasets: [{
-                label: 'Rows',
-                data: [
-                    summary.original_rows || 0,
-                    summary.dropped_duplicates || 0,
-                    summary.cleaned_rows || 0
-                ],
-                backgroundColor: [
-                    'rgba(102, 126, 234, 0.7)',
-                    'rgba(239, 85, 59, 0.7)',
-                    'rgba(0, 204, 150, 0.7)'
-                ],
-                borderColor: [
-                    'rgba(102, 126, 234, 1)',
-                    'rgba(239, 85, 59, 1)',
-                    'rgba(0, 204, 150, 1)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y'
+    // Column-wise missing data chart
+    const columnCtx = document.getElementById('column-chart');
+    if (columnCtx && lastResult.summary) {
+        if (charts.column) charts.column.destroy();
+        
+        const before = lastResult.summary.missing_summary_before || [];
+        const after = lastResult.summary.missing_summary_after || [];
+        
+        if (before.length > 0) {
+            const sorted = before.sort((a, b) => b.missing_pct - a.missing_pct);
+            const columns = sorted.map(d => d.column);
+            const beforePcts = sorted.map(d => d.missing_pct);
+            const afterPcts = columns.map(col => {
+                const found = after.find(d => d.column === col);
+                return found ? found.missing_pct : 0;
+            });
+            
+            charts.column = new Chart(columnCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: columns,
+                    datasets: [
+                        {
+                            label: 'Before Cleaning (%)',
+                            data: beforePcts,
+                            backgroundColor: 'rgba(239, 85, 59, 0.7)',
+                            borderColor: 'rgba(239, 85, 59, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'After Cleaning (%)',
+                            data: afterPcts,
+                            backgroundColor: 'rgba(0, 204, 150, 0.7)',
+                            borderColor: 'rgba(0, 204, 150, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    barRadius: 6,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: (value) => value + '%'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`
+                            }
+                        }
+                    }
+                }
+            });
         }
-    });
+    }
 }
 
 // Check backend status
@@ -647,4 +766,14 @@ function showLoadingOverlay(show) {
     } else {
         if (overlay) overlay.style.display = 'none';
     }
+}
+
+// Show error message
+function showError(message) {
+    showToast(message, 'error', 5000);
+}
+
+// Show loading
+function showLoading(show) {
+    showLoadingOverlay(show);
 }

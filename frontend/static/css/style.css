@@ -524,6 +524,14 @@ html, body {
     background: linear-gradient(135deg, #f093fb, #f5576c);
 }
 
+.metric-card.metric-info {
+    background: linear-gradient(135deg, var(--info), #0284c7);
+}
+
+.metric-card.metric-danger {
+    background: linear-gradient(135deg, var(--danger), #dc2626);
+}
+
 .metric-value {
     font-size: 38px;
     font-weight: 800;
@@ -629,12 +637,21 @@ html, body {
 .chart-container {
     position: relative;
     height: 400px;
-    margin: 35px 0;
+    margin: 25px 0;
     background: white;
     padding: 25px;
     border-radius: 16px;
     box-shadow: var(--shadow);
     border: 1px solid var(--gray-100);
+    transition: var(--transition);
+}
+
+.chart-container:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.chart-container.large {
+    height: 450px;
 }
 
 .grid-2 {
