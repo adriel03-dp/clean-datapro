@@ -2,11 +2,16 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 import uuid
+import sys
+import os
 
 from .. import cleaner as cleaner_mod
 from .. import report_generator as report_mod
 from ..config import get_mongo_client, MONGODB_URI
-from ...utils.logger import get_logger
+
+# Add parent directory to path for utils import
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
+from backend.utils.logger import get_logger
 
 router = APIRouter()
 logger = get_logger("cleandatapro.backend.process")

@@ -1,10 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import sys
+import os
+
+# Add backend to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from .routes import process as process_router
 from .routes import files as files_router
 from .routes import runs as runs_router
-from ..utils.logger import get_logger
+from utils.logger import get_logger
 from . import config as cfg
 
 app = FastAPI(title="CleanDataPro Backend")
