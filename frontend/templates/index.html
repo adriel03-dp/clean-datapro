@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CleanDataPro - Data Cleaning & Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <sidebar class="sidebar">
+            <div class="sidebar-header">
+                <h1>🧹 CleanDataPro</h1>
+                <p class="subtitle">Data Cleaning & Analysis</p>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-item active" data-page="upload">
+                    <span class="icon">🚀</span> Upload & Clean
+                </button>
+                <button class="nav-item" data-page="analytics">
+                    <span class="icon">📈</span> Analytics
+                </button>
+                <button class="nav-item" data-page="history">
+                    <span class="icon">📜</span> History
+                </button>
+                <button class="nav-item" data-page="settings">
+                    <span class="icon">⚙️</span> Settings
+                </button>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <div class="status-dot" id="backend-status"></div>
+                    <span id="backend-text">Checking...</span>
+                </div>
+                <p class="version">v1.0.0</p>
+            </div>
+        </sidebar>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload & Clean Page -->
+            <section id="upload-page" class="page active">
+                <header class="page-header">
+                    <h2>🚀 Upload & Clean Your Data</h2>
+                    <p>Upload a CSV file to analyze and clean your dataset</p>
+                </header>
+                
+                <div class="container">
+                    <!-- Upload Area -->
+                    <div class="upload-section">
+                        <div class="upload-area" id="upload-area">
+                            <svg class="upload-icon" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            </svg>
+                            <h3>Drag and drop your CSV file here</h3>
+                            <p>or</p>
+                            <button class="btn btn-primary" id="file-input-btn">
+                                Choose File
+                            </button>
+                            <input type="file" id="file-input" accept=".csv" style="display: none;">
+                        </div>
+                    </div>
+                    
+                    <!-- File Preview -->
+                    <div id="preview-section" class="preview-section" style="display: none;">
+                        <div class="card">
+                            <h3>📋 File Preview</h3>
+                            <div class="file-info">
+                                <p><strong>Filename:</strong> <span id="preview-filename"></span></p>
+                                <p><strong>Size:</strong> <span id="preview-size"></span></p>
+                                <p><strong>Rows × Columns:</strong> <span id="preview-shape"></span></p>
+                            </div>
+                            
+                            <div class="missing-summary">
+                                <h4>Missing Values Summary</h4>
+                                <table id="missing-table" class="summary-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Column</th>
+                                            <th>Missing Count</th>
+                                            <th>Missing %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            
+                            <h4>Data Preview (First 10 rows)</h4>
+                            <div class="table-wrapper">
+                                <table id="preview-table" class="data-table">
+                                    <thead></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <button class="btn btn-success" id="process-btn">
+                                    🔄 Process & Clean
+                                </button>
+                                <button class="btn btn-secondary" id="upload-again-btn">
+                                    ✏️ Upload Different File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Section -->
+                    <div id="results-section" class="results-section" style="display: none;">
+                        <div class="card">
+                            <h3>✅ Processing Complete!</h3>
+                            
+                            <div class="metrics-grid">
+                                <div class="metric-card">
+                                    <div class="metric-value" id="metric-original">-</div>
+                                    <div class="metric-label">Original Rows</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-value" id="metric-cleaned">-</div>
+                                    <div class="metric-label">Cleaned Rows</div>
+                                </div>
+                                <div class="metric-card metric-warning">
+                                    <div class="metric-value" id="metric-duplicates">-</div>
+                                    <div class="metric-label">Duplicates Removed</div>
+                                </div>
+                                <div class="metric-card metric-success">
+                                    <div class="metric-value" id="metric-improvement">-</div>
+                                    <div class="metric-label">Missing Values Fixed</div>
+                                </div>
+                            </div>
+                            
+                            <h4>Missing Values: Before vs After</h4>
+                            <div class="chart-container">
+                                <canvas id="missing-chart"></canvas>
+                            </div>
+                            
+                            <h4>Downloads</h4>
+                            <div class="download-buttons" id="download-buttons">
+                                <!-- Generated dynamically -->
+                            </div>
+                            
+                            <button class="btn btn-primary" id="process-another-btn">
+                                ➕ Process Another File
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading Spinner -->
+                    <div id="loading-spinner" class="loading-spinner" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>Processing your file... This may take a moment.</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Analytics Page -->
+            <section id="analytics-page" class="page">
+                <header class="page-header">
+                    <h2>📈 Advanced Analytics</h2>
+                    <p>Detailed insights about your last processing run</p>
+                </header>
+                
+                <div class="container">
+                    <div id="analytics-empty" class="empty-state">
+                        <p>📊 Upload and process a file first to see analytics</p>
+                    </div>
+                    
+                    <div id="analytics-content" style="display: none;">
+                        <div class="grid-2">
+                            <div class="card">
+                                <h3>Data Quality Improvement</h3>
+                                <canvas id="improvement-chart"></canvas>
+                            </div>
+                            <div class="card">
+                                <h3>Row Statistics</h3>
+                                <canvas id="rows-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <h3>Column-wise Missing Data</h3>
+                            <canvas id="column-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- History Page -->
+            <section id="history-page" class="page">
+                <header class="page-header">
+                    <h2>📜 Processing History</h2>
+                    <p>Recent file processing runs</p>
+                </header>
+                
+                <div class="container">
+                    <div class="card">
+                        <button class="btn btn-secondary" id="refresh-history-btn">
+                            🔄 Refresh History
+                        </button>
+                        
+                        <div id="history-table-container">
+                            <table id="history-table" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Filename</th>
+                                        <th>Run ID</th>
+                                        <th>Original Rows</th>
+                                        <th>Cleaned Rows</th>
+                                        <th>Duplicates</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-tbody">
+                                    <tr class="empty-row">
+                                        <td colspan="5">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Settings Page -->
+            <section id="settings-page" class="page">
+                <header class="page-header">
+                    <h2>⚙️ Settings & Configuration</h2>
+                    <p>Manage your CleanDataPro setup</p>
+                </header>
+                
+                <div class="container">
+                    <div class="card">
+                        <h3>Backend Configuration</h3>
+                        <p><strong>Backend URL:</strong> <code id="backend-url">http://localhost:8000</code></p>
+                        <button class="btn btn-secondary" id="test-connection-btn">
+                            🔗 Test Backend Connection
+                        </button>
+                        <div id="connection-result"></div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3>About CleanDataPro</h3>
+                        <ul>
+                            <li>📊 Missing value analysis</li>
+                            <li>🧹 Intelligent data cleaning</li>
+                            <li>📄 PDF report generation</li>
+                            <li>📜 Processing history tracking</li>
+                            <li>🔌 REST API integration</li>
+                        </ul>
+                        
+                        <h4>Tech Stack</h4>
+                        <ul>
+                            <li>Frontend: Flask + HTML/CSS/JS</li>
+                            <li>Backend: FastAPI</li>
+                            <li>Data Processing: Pandas</li>
+                            <li>Reporting: ReportLab</li>
+                            <li>Visualization: Chart.js</li>
+                        </ul>
+                        
+                        <p>
+                            <strong>Version:</strong> 1.0.0<br>
+                            <strong>Repository:</strong> 
+                            <a href="https://github.com/adriel03-dp/clean-datapro" target="_blank">
+                                GitHub - clean-datapro
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
