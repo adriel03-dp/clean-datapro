@@ -160,8 +160,8 @@
             <!-- Analytics Page -->
             <section id="analytics-page" class="page">
                 <header class="page-header">
-                    <h2>📈 Advanced Analytics</h2>
-                    <p>Detailed insights about your last processing run</p>
+                    <h2>📈 Advanced Analytics Dashboard</h2>
+                    <p>Comprehensive insights about your data cleaning process</p>
                 </header>
                 
                 <div class="container">
@@ -170,20 +170,47 @@
                     </div>
                     
                     <div id="analytics-content" style="display: none;">
+                        <!-- Key Metrics Section -->
+                        <div class="metrics-grid">
+                            <div class="metric-card metric-info">
+                                <div class="metric-value" id="analytics-metric-original">-</div>
+                                <div class="metric-label">Original Rows</div>
+                            </div>
+                            <div class="metric-card metric-success">
+                                <div class="metric-value" id="analytics-metric-cleaned">-</div>
+                                <div class="metric-label">Cleaned Rows</div>
+                            </div>
+                            <div class="metric-card metric-warning">
+                                <div class="metric-value" id="analytics-metric-duplicates">-</div>
+                                <div class="metric-label">Duplicates Removed</div>
+                            </div>
+                            <div class="metric-card metric-success">
+                                <div class="metric-value" id="analytics-metric-fixed">-</div>
+                                <div class="metric-label">Issues Fixed</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Charts Grid -->
                         <div class="grid-2">
                             <div class="card">
-                                <h3>Data Quality Improvement</h3>
-                                <canvas id="improvement-chart"></canvas>
+                                <h3>🎯 Data Quality Improvement</h3>
+                                <div class="chart-container">
+                                    <canvas id="improvement-chart"></canvas>
+                                </div>
                             </div>
                             <div class="card">
-                                <h3>Row Statistics</h3>
-                                <canvas id="rows-chart"></canvas>
+                                <h3>📊 Row Statistics</h3>
+                                <div class="chart-container">
+                                    <canvas id="rows-chart"></canvas>
+                                </div>
                             </div>
                         </div>
                         
                         <div class="card">
-                            <h3>Column-wise Missing Data</h3>
-                            <canvas id="column-chart"></canvas>
+                            <h3>🔍 Column-wise Missing Data Analysis</h3>
+                            <div class="chart-container large">
+                                <canvas id="column-chart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
