@@ -5,12 +5,105 @@ let currentFile = null;
 let lastResult = null;
 let charts = {};
 
+// ========== THEME MANAGEMENT ==========
+function initializeTheme() {
+    const isDarkMode = localStorage.getItem('cleandatapro-dark-mode') === 'true';
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+        updateThemeToggleIcon(true);
+    }
+}
+
+function toggleTheme() {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('cleandatapro-dark-mode', isDarkMode);
+    updateThemeToggleIcon(isDarkMode);
+    showToast(isDarkMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info', 2000);
+}
+
+function updateThemeToggleIcon(isDarkMode) {
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) {
+        toggle.textContent = isDarkMode ? '☀️' : '🌙';
+    }
+}
+
+// ========== MODAL MANAGEMENT ==========
+function showModal(title, message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-message').textContent = message;
+    
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    confirmBtn.onclick = () => {
+        if (onConfirm) onConfirm();
+        closeModal('confirm-modal');
+    };
+    
+    modal.classList.add('show');
+    
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal('confirm-modal');
+        }
+    });
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('show');
+}
+
+// ========== PROGRESS TRACKING ==========
+function updateProgress(percent, label = '') {
+    const bar = document.getElementById('progress-bar');
+    const text = document.getElementById('progress-text');
+    const info = document.getElementById('progress-info');
+    
+    if (bar) {
+        bar.style.width = percent + '%';
+    }
+    if (text) {
+        text.textContent = Math.round(percent) + '%';
+    }
+    if (info && label) {
+        info.textContent = label;
+    }
+}
+
+// ========== SKELETON LOADER ==========
+function createSkeletonLoader(count = 3) {
+    let html = '';
+    for (let i = 0; i < count; i++) {
+        html += `
+            <div class="skeleton-row">
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+                <div class="skeleton skeleton-card"></div>
+            </div>
+        `;
+    }
+    return html;
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
     initializeApp();
     setupEventListeners();
     checkBackendStatus();
+    setupThemeToggle();
 });
+
+// Setup theme toggle
+function setupThemeToggle() {
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) {
+        toggle.addEventListener('click', toggleTheme);
+    }
+}
 
 // Initialize the application
 function initializeApp() {
@@ -66,15 +159,22 @@ function setupFileHandling() {
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadArea.classList.add('dragover');
+        uploadArea.style.borderColor = 'var(--success)';
+        uploadArea.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
     });
     
     uploadArea.addEventListener('dragleave', () => {
         uploadArea.classList.remove('dragover');
+        uploadArea.style.borderColor = 'var(--primary)';
+        uploadArea.style.backgroundColor = 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)';
     });
     
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
+        uploadArea.style.borderColor = 'var(--primary)';
+        uploadArea.style.backgroundColor = 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)';
+        
         if (e.dataTransfer.files.length > 0) {
             handleFileSelect(e.dataTransfer.files[0]);
         }
@@ -117,6 +217,7 @@ function displayFilePreview(data) {
     uploadArea.style.display = 'none';
     resultsSection.style.display = 'none';
     previewSection.style.display = 'block';
+    previewSection.classList.add('fade-in-up');
     
     // Fill in file info
     document.getElementById('preview-filename').textContent = data.filename;
@@ -124,6 +225,9 @@ function displayFilePreview(data) {
         `${(currentFile.size / 1024).toFixed(2)} KB`;
     document.getElementById('preview-shape').textContent = 
         `${data.shape.rows.toLocaleString()} × ${data.shape.columns}`;
+    
+    // Show toast notification
+    showToast(`✅ File uploaded: ${data.filename}`, 'success', 2000);
     
     // Fill missing values table
     const missingTable = document.querySelector('#missing-table tbody');
@@ -134,7 +238,7 @@ function displayFilePreview(data) {
     
     sorted.forEach(([col, info]) => {
         const row = `
-            <tr>
+            <tr class="fade-in-up">
                 <td>${col}</td>
                 <td>${info.count}</td>
                 <td><span class="missing-badge">${info.pct}%</span></td>
@@ -148,7 +252,11 @@ function displayFilePreview(data) {
     
     // Setup action buttons
     document.getElementById('process-btn').onclick = () => processFile();
-    document.getElementById('upload-again-btn').onclick = () => resetUpload();
+    document.getElementById('upload-again-btn').onclick = () => {
+        showModal('New File?', 'Upload a different file?', () => {
+            resetUpload();
+        });
+    };
 }
 
 // Display data preview table
@@ -193,14 +301,32 @@ async function processFile() {
         previewSection.style.display = 'none';
         loadingSpinner.style.display = 'flex';
         
+        // Simulate progress
+        updateProgress(0, 'Initializing...');
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress < 90) {
+                updateProgress(progress, 'Processing your data...');
+            }
+        }, 200);
+        
         const response = await axios.post(`${API_BASE}/process`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: 120000
         });
         
+        clearInterval(progressInterval);
+        updateProgress(100, 'Complete!');
+        
         lastResult = response.data.data;
-        displayResults(lastResult);
-        loadingSpinner.style.display = 'none';
+        
+        // Show completion toast
+        setTimeout(() => {
+            displayResults(lastResult);
+            loadingSpinner.style.display = 'none';
+            showToast('✅ File processed successfully!', 'success', 3000);
+        }, 300);
     } catch (error) {
         showError(`Error processing file: ${error.response?.data?.error || error.message}`);
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -216,29 +342,56 @@ function displayResults(data) {
     const summary = data.summary || {};
     
     resultsSection.style.display = 'block';
+    resultsSection.classList.add('fade-in-up');
     
-    // Update metrics
-    document.getElementById('metric-original').textContent = 
-        (summary.original_rows || 0).toLocaleString();
-    document.getElementById('metric-cleaned').textContent = 
-        (summary.cleaned_rows || 0).toLocaleString();
-    document.getElementById('metric-duplicates').textContent = 
-        (summary.dropped_duplicates || 0).toLocaleString();
+    // Animate metric cards
+    const originalRows = summary.original_rows || 0;
+    const cleanedRows = summary.cleaned_rows || 0;
+    const duplicates = summary.dropped_duplicates || 0;
+    
+    animateCounter('metric-original', 0, originalRows);
+    animateCounter('metric-cleaned', 0, cleanedRows);
+    animateCounter('metric-duplicates', 0, duplicates);
     
     const beforeMissing = summary.missing_before || 0;
     const afterMissing = summary.missing_after || 0;
     const improvement = beforeMissing - afterMissing;
-    document.getElementById('metric-improvement').textContent = 
-        improvement.toLocaleString();
+    animateCounter('metric-improvement', 0, improvement);
     
     // Draw charts
-    drawMissingChart(summary);
+    setTimeout(() => {
+        drawMissingChart(summary);
+    }, 500);
     
     // Setup downloads
     setupDownloads(data);
     
     // Setup action buttons
-    document.getElementById('process-another-btn').onclick = () => resetUpload();
+    document.getElementById('process-another-btn').onclick = () => {
+        showModal('New File?', 'Do you want to process another file?', () => {
+            resetUpload();
+        });
+    };
+}
+
+// Animate counter
+function animateCounter(elementId, start, end, duration = 800) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const range = end - start;
+    const increment = range / (duration / 16);
+    let current = start;
+    
+    const timer = setInterval(() => {
+        current += increment;
+        if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+            element.textContent = end.toLocaleString();
+            clearInterval(timer);
+        } else {
+            element.textContent = Math.round(current).toLocaleString();
+        }
+    }, 16);
 }
 
 // Draw missing values chart
@@ -350,37 +503,46 @@ function resetUpload() {
     document.getElementById('preview-section').style.display = 'none';
     document.getElementById('results-section').style.display = 'none';
     currentFile = null;
+    updateProgress(0);
 }
 
 // Load history
 async function loadHistory() {
     try {
+        const tbody = document.getElementById('history-tbody');
+        tbody.innerHTML = '<tr><td colspan="5"><div class="skeleton-row" style="height: 20px;"><div class="skeleton skeleton-card"></div></div></td></tr>';
+        
         const response = await axios.get(`${API_BASE}/history`);
         const runs = response.data.runs || [];
         
-        const tbody = document.getElementById('history-tbody');
         tbody.innerHTML = '';
         
         if (runs.length === 0) {
             tbody.insertAdjacentHTML('beforeend', 
                 '<tr class="empty-row"><td colspan="5">No processing history found</td></tr>');
+            showToast('📜 No history available yet', 'info', 2000);
             return;
         }
         
-        runs.forEach(run => {
+        runs.forEach((run, index) => {
             const row = `
-                <tr>
+                <tr class="fade-in-up" style="animation-delay: ${index * 50}ms;">
                     <td>${run.uploaded_filename || 'Unknown'}</td>
-                    <td>${(run.run_id || 'N/A').substring(0, 8)}</td>
+                    <td><code>${(run.run_id || 'N/A').substring(0, 8)}</code></td>
                     <td>${(run.summary?.original_rows || 'N/A').toLocaleString()}</td>
                     <td>${(run.summary?.cleaned_rows || 'N/A').toLocaleString()}</td>
-                    <td>${run.summary?.dropped_duplicates || 0}</td>
+                    <td><span class="metric-badge">${run.summary?.dropped_duplicates || 0}</span></td>
                 </tr>
             `;
             tbody.insertAdjacentHTML('beforeend', row);
         });
+        
+        showToast(`✅ Loaded ${runs.length} history records`, 'success', 2000);
     } catch (error) {
         console.error('Error loading history:', error);
+        showError('Failed to load history: ' + error.message);
+        const tbody = document.getElementById('history-tbody');
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Error loading history</td></tr>';
     }
 }
 
@@ -394,24 +556,23 @@ function refreshAnalytics() {
     
     document.getElementById('analytics-empty').style.display = 'none';
     document.getElementById('analytics-content').style.display = 'block';
+    document.getElementById('analytics-content').classList.add('fade-in-up');
     
     const summary = lastResult.summary || {};
     
-    // Update metric cards
-    document.getElementById('analytics-metric-original').textContent = 
-        (summary.original_rows || 0).toLocaleString();
-    document.getElementById('analytics-metric-cleaned').textContent = 
-        (summary.cleaned_rows || 0).toLocaleString();
-    document.getElementById('analytics-metric-duplicates').textContent = 
-        (summary.dropped_duplicates || 0).toLocaleString();
+    // Update metric cards with animation
+    animateCounter('analytics-metric-original', 0, summary.original_rows || 0);
+    animateCounter('analytics-metric-cleaned', 0, summary.cleaned_rows || 0);
+    animateCounter('analytics-metric-duplicates', 0, summary.dropped_duplicates || 0);
     
     const beforeMissing = summary.missing_before || 0;
     const afterMissing = summary.missing_after || 0;
     const fixed = beforeMissing - afterMissing;
-    document.getElementById('analytics-metric-fixed').textContent = 
-        fixed.toLocaleString();
+    animateCounter('analytics-metric-fixed', 0, fixed);
     
-    drawAnalyticsCharts();
+    setTimeout(() => {
+        drawAnalyticsCharts();
+    }, 500);
 }
 
 // Draw analytics charts
