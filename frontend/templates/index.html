@@ -62,6 +62,10 @@
                             <button class="btn btn-primary" id="file-input-btn">
                                 Choose File
                             </button>
+                            <div class="tooltip-container" style="margin-top: 10px; display: inline-block;">
+                                <span style="color: #666; font-size: 13px; cursor: help;">ℹ️</span>
+                                <span class="tooltip-text">Supported format: CSV only. Max size: 100MB</span>
+                            </div>
                             <input type="file" id="file-input" accept=".csv" style="display: none;">
                         </div>
                     </div>
@@ -115,21 +119,25 @@
                             <h3>✅ Processing Complete!</h3>
                             
                             <div class="metrics-grid">
-                                <div class="metric-card">
+                                <div class="metric-card tooltip-container">
                                     <div class="metric-value" id="metric-original">-</div>
                                     <div class="metric-label">Original Rows</div>
+                                    <span class="tooltip-text">Total rows before cleaning</span>
                                 </div>
-                                <div class="metric-card">
+                                <div class="metric-card tooltip-container">
                                     <div class="metric-value" id="metric-cleaned">-</div>
                                     <div class="metric-label">Cleaned Rows</div>
+                                    <span class="tooltip-text">Rows after removing duplicates</span>
                                 </div>
-                                <div class="metric-card metric-warning">
+                                <div class="metric-card metric-warning tooltip-container">
                                     <div class="metric-value" id="metric-duplicates">-</div>
                                     <div class="metric-label">Duplicates Removed</div>
+                                    <span class="tooltip-text">Number of duplicate rows deleted</span>
                                 </div>
-                                <div class="metric-card metric-success">
+                                <div class="metric-card metric-success tooltip-container">
                                     <div class="metric-value" id="metric-improvement">-</div>
                                     <div class="metric-label">Missing Values Fixed</div>
+                                    <span class="tooltip-text">Missing values that were handled</span>
                                 </div>
                             </div>
                             
@@ -153,6 +161,13 @@
                     <div id="loading-spinner" class="loading-spinner" style="display: none;">
                         <div class="spinner"></div>
                         <p>Processing your file... This may take a moment.</p>
+                        <div class="progress-container" style="width: 300px;">
+                            <div class="progress-bar" id="progress-bar"></div>
+                        </div>
+                        <div class="progress-label">
+                            <span id="progress-text">0%</span>
+                            <span id="progress-info"></span>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -298,6 +313,24 @@
                 </div>
             </section>
         </main>
+    </div>
+    
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="theme-toggle" title="Toggle Dark Mode">🌙</button>
+    
+    <!-- Modal Templates -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Confirm Action</h2>
+                <button class="modal-close" onclick="closeModal('confirm-modal')">&times;</button>
+            </div>
+            <p id="modal-message"></p>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('confirm-modal')">Cancel</button>
+                <button class="btn btn-primary" id="modal-confirm-btn">Confirm</button>
+            </div>
+        </div>
     </div>
     
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
