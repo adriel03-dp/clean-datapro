@@ -31,22 +31,18 @@ logger = get_logger("cleandatapro.backend")
 
 @app.on_event("startup")
 def startup_event():
-    """Establish MongoDB connection at startup for processing history storage.
+    """Initialize MongoDB connection if available.
 
-    MongoDB is required for persistent storage of processing history.
+    MongoDB is optional - the backend works without it, just won't save history.
     """
     try:
         ok = cfg.test_mongo_connection()
         if ok:
-            logger.info("✅ MongoDB connection established successfully")
+            logger.info("✅ MongoDB connection established - processing history enabled")
         else:
-            logger.error(
-                "❌ MongoDB connection failed - MONGODB_URI not set or invalid. Please configure MongoDB."
-            )
-            raise RuntimeError("MongoDB connection required but not available")
+            logger.warning("⚠️ MongoDB not configured - processing history disabled (optional)")
     except Exception as e:
-        logger.error("❌ MongoDB connection error: %s - Application startup failed", e)
-        raise
+        logger.warning("⚠️ MongoDB connection optional - skipping: %s", e)
 
 
 @app.on_event("shutdown")
