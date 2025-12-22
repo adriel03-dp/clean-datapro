@@ -1,10 +1,11 @@
-# CleanDataPro 🧹📊
+# CleanDataPro
 
 **CleanDataPro** is a comprehensive data cleaning and analysis platform that automates CSV data preprocessing, generates detailed reports, and provides an intuitive web interface for data quality management.
 
-## 🌟 Features
+## Features
 
 ### Data Cleaning
+
 - **Automatic Missing Value Imputation**: Intelligent filling of missing values based on data types
   - Numeric columns: Filled with median values
   - Datetime columns: Filled with earliest date
@@ -13,7 +14,21 @@
 - **Type Inference and Conversion**: Automatically detects and converts numeric columns
 - **Column Analysis**: Detailed per-column statistics including missing percentages, unique counts, and sample values
 
+### Data Issues Reporting (NEW)
+
+- **Before/After Comparison**: See exactly what data quality issues existed and how they were fixed
+- **Issues Overview**: Visual summary of all problems found (duplicates, missing values)
+- **Column-by-Column Breakdown**: Understand which columns had issues and severity
+- **Cleaning Impact Dashboard**: See the complete transformation of your data
+- **Data Quality Scoring**: Track quality improvement from start to finish
+
 ### Reporting & Visualization
+
+- **Data Issues Report**: Side-by-side before/after comparison showing all problems found and how they were fixed
+  - Visual 3-column Before/After layout showing the entire transformation
+  - Column-by-column breakdown of missing values
+  - Complete cleaning operations summary
+  - Data quality score improvements
 - **PDF Reports**: Comprehensive data quality reports with before/after comparisons
 - **JSON Summaries**: Machine-readable summaries of cleaning operations
 - **Interactive Dashboard**: Streamlit-based web interface with:
@@ -23,38 +38,43 @@
   - Processing status tracking
 
 ### API & Integration
+
 - **RESTful API**: FastAPI-based backend with endpoints for:
   - CSV file processing (`POST /api/process`)
   - File downloads (`GET /api/download`)
   - Processing history (`GET /api/runs`)
   - Health checks (`GET /healthz`)
-- **MongoDB Integration**: Optional persistence layer for processing history
+- **MongoDB Integration**: Persistent storage layer for processing history and data retention
 - **CORS Support**: Cross-origin resource sharing enabled for frontend integration
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
+
 - **FastAPI** (v0.95.0+): Modern, high-performance web framework
 - **Uvicorn**: ASGI server with async support
 - **Python 3.11**: Core programming language
 - **Pandas** (v1.5.0+): Data manipulation and analysis
 - **ReportLab** (v4.0.0+): PDF generation
 - **Rich** (v13.0.0+): Terminal output formatting
-- **PyMongo** (v4.0.0+): MongoDB driver (optional)
+- **PyMongo** (v4.0.0+): MongoDB driver for data persistence
 - **APScheduler** (v3.8.0+): Task scheduling
 - **python-dotenv**: Environment variable management
 
 ### Frontend
+
 - **Streamlit** (v1.24.0+): Interactive web application framework
 - **Plotly** (v5.0.0+): Interactive data visualization
 - **Requests** (v2.28.0+): HTTP client for API communication
 - **Pandas**: Data display and manipulation
 
 ### Data Processing
+
 - **Pandas**: Core data processing engine
 - **NumPy**: Numerical computing (via Pandas)
 
 ### Development Tools
+
 - **pytest**: Testing framework
 - **Black**: Code formatter
 - **isort**: Import sorting
@@ -98,22 +118,25 @@ clean-datapro/
 └── README.md            # This file
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
+
 - Python 3.11 or higher
 - pip (Python package manager)
-- (Optional) MongoDB for persistence
+- MongoDB (local or MongoDB Atlas) for processing history persistence
 
 ### Installation
 
 #### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/adriel03-dp/clean-datapro.git
 cd clean-datapro
 ```
 
 #### 2. Set Up Backend
+
 ```bash
 cd backend
 python -m venv .venv
@@ -126,6 +149,7 @@ pip install -r requirements.txt
 ```
 
 #### 3. Set Up Frontend
+
 ```bash
 cd ../frontend
 python -m venv .venv
@@ -140,6 +164,7 @@ pip install -r requirements.txt
 ### Running the Application
 
 #### Start Backend Server
+
 ```bash
 cd backend
 # From repository root
@@ -152,6 +177,7 @@ python -m uvicorn src.main:app --reload --port 8000
 The backend API will be available at `http://localhost:8000`
 
 #### Start Frontend Interface
+
 ```bash
 cd frontend
 streamlit run streamlit_app.py
@@ -162,24 +188,37 @@ The web interface will open automatically at `http://localhost:8501`
 ### Using Docker
 
 #### Backend with Docker
+
 ```bash
 cd backend
 docker build -t cleandatapro-backend .
 docker run -p 8000:8000 cleandatapro-backend
 ```
 
-## 📖 Usage
+## Usage
 
-### Web Interface
+### Web Interface - Data Issues Report
+
 1. Open the Streamlit interface at `http://localhost:8501`
 2. Upload a CSV file using the file uploader
-3. Wait for processing to complete
-4. View the summary statistics and visualizations
-5. Download cleaned CSV, PDF report, or JSON summary
+3. Click **"Process & Clean"** button
+4. **See the Data Issues Report** - A prominent section shows:
+   - BEFORE: What problems were found (duplicates, missing values, quality score)
+   - CLEANING: What operations were performed
+   - AFTER: Final results (all issues fixed, 100% quality)
+5. Review the 4 detailed analysis tabs:
+   - Issues Found - Complete breakdown of problems
+   - Missing by Column - Which columns had issues
+   - Cleaning Details - What was done step-by-step
+   - Final Quality - Before/after quality comparison
+6. Download cleaned CSV, PDF report, or JSON summary
+
+**See [DATA_ISSUES_VISUALIZATION_GUIDE.md](DATA_ISSUES_VISUALIZATION_GUIDE.md) for detailed examples**
 
 ### API Usage
 
 #### Process CSV File
+
 ```bash
 curl -X POST "http://localhost:8000/api/process" \
   -H "accept: application/json" \
@@ -188,6 +227,7 @@ curl -X POST "http://localhost:8000/api/process" \
 ```
 
 Response:
+
 ```json
 {
   "summary": {
@@ -207,6 +247,7 @@ Response:
 ```
 
 #### Download Files
+
 ```bash
 # Download cleaned CSV
 curl "http://localhost:8000/api/download?kind=processed&filename=yourfile_abc123_cleaned.csv" -o cleaned.csv
@@ -219,6 +260,7 @@ curl "http://localhost:8000/api/download?kind=reports&filename=yourfile_abc123_s
 ```
 
 #### View Processing History
+
 ```bash
 curl "http://localhost:8000/api/runs?limit=10"
 ```
@@ -242,14 +284,14 @@ generate_pdf_report(summary, "report.pdf", title="My Data Report")
 save_json_summary(summary, "summary.json")
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
 Create a `.env` file in the `backend/` directory:
 
 ```env
-# MongoDB Connection (optional)
+# MongoDB Connection (Required)
 MONGODB_URI=mongodb://localhost:27017/cleandatapro
 # or for MongoDB Atlas:
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/cleandatapro
@@ -258,15 +300,19 @@ MONGODB_URI=mongodb://localhost:27017/cleandatapro
 CLEAN_DATAPRO_BACKEND=http://localhost:8000
 ```
 
-### MongoDB Setup (Optional)
+### MongoDB Setup (Required)
 
-CleanDataPro can persist processing history to MongoDB:
+CleanDataPro requires MongoDB for persistent storage of processing history:
 
-1. Install MongoDB locally or use MongoDB Atlas
-2. Set the `MONGODB_URI` environment variable
-3. The application will automatically create a `clean_runs` collection
+1. **Install MongoDB** - Choose one option:
+   - **Local Installation**: Download from https://www.mongodb.com/try/download/community
+   - **MongoDB Atlas**: Create a free account at https://www.mongodb.com/cloud/atlas
+2. **Configure Connection** - Set the `MONGODB_URI` environment variable in `.env`
+3. **Database Setup** - The application will automatically create:
+   - Database: `cleandatapro`
+   - Collection: `clean_runs` (for processing history)
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -279,9 +325,10 @@ pytest --cov=src --cov=backend/src
 pytest tests/test_cleaner.py
 ```
 
-## 🤝 Development
+## Development
 
 ### Code Formatting
+
 ```bash
 # Format code with Black
 black .
@@ -291,48 +338,60 @@ isort .
 ```
 
 ### Project Configuration
+
 - **Black**: Line length 88, configured in `pyproject.toml`
 - **isort**: Black-compatible profile
 
-## 📋 API Documentation
+## API Documentation
 
 Once the backend is running, visit:
+
 - **Interactive API Docs**: `http://localhost:8000/docs` (Swagger UI)
 - **Alternative Docs**: `http://localhost:8000/redoc` (ReDoc)
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Backend Issues
+
 - **"Address already in use"**: Another process is using port 8000. Stop it or use `--port 8001`
 - **"uvicorn not found"**: Ensure virtual environment is activated and dependencies are installed
 - **Import errors**: Run from repository root or adjust `PYTHONPATH`
 
 ### Frontend Issues
+
 - **Cannot connect to backend**: Ensure backend is running on the correct port
 - **Download links not working**: Open links directly in browser instead of Streamlit
 
 ### MongoDB Issues
-- **Connection failures**: Check `MONGODB_URI` format and network connectivity
-- **App continues without MongoDB**: This is expected - MongoDB is optional
 
-## 📄 License
+- **Connection failures**: Check `MONGODB_URI` format and network connectivity
+- **App cannot start**: MongoDB connection is required - ensure MongoDB is running and `MONGODB_URI` is correctly configured
+- **Collection not created**: The app will create the `clean_runs` collection automatically on first use
+
+## License
 
 This project is open source. Please check the repository for license details.
 
-## 👥 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
 
-## 🔗 Links
+## Links
 
 - **Repository**: https://github.com/adriel03-dp/clean-datapro
 - **Issues**: https://github.com/adriel03-dp/clean-datapro/issues
 
-## 📧 Support
+## Support
 
 For questions and support, please open an issue on GitHub.
 
 ---
 
-Made by Adriel Perera
+## Author
 
+**Adriel Perera**
+
+- LinkedIn: [www.linkedin.com/in/adriel-perera](https://www.linkedin.com/in/adriel-perera)
+- GitHub: [@adriel03-dp](https://github.com/adriel03-dp)
+
+Made with care by Adriel Perera
