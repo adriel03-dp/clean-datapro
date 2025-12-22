@@ -53,8 +53,8 @@ with st.sidebar:
     st.markdown("---")
     
     page = st.radio(
-        "📊 Navigation",
-        ["🚀 Upload & Clean", "📈 Analytics", "📜 Processing History", "⚙️ Settings"],
+        "Navigation",
+        ["Upload & Clean", "Analytics", "Processing History", "Settings"],
         key="nav_page"
     )
     
@@ -70,6 +70,8 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("**Version:** 1.0.0")
+    st.markdown("**Created by:** Adriel Perera")
+    st.markdown("[LinkedIn](https://www.linkedin.com/in/adriel-perera) | [GitHub](https://github.com/adriel03-dp)")
 
 # Helper functions
 def _basename_posix(path):
@@ -159,35 +161,69 @@ def display_missing_analysis(data):
     if df_before.empty:
         return
     
-    # Merge before/after data
+    # Merge before/after data with missing counts (not just percentages)
     merged = pd.merge(
-        df_before[["column", "missing_pct"]].rename(
-            columns={"missing_pct": "Before (%)"}
+        df_before[["column", "missing_count", "missing_pct"]].rename(
+            columns={"missing_count": "Count Before", "missing_pct": "Before (%)"}
         ),
-        df_after[["column", "missing_pct"]].rename(
-            columns={"missing_pct": "After (%)"}
+        df_after[["column", "missing_count", "missing_pct"]].rename(
+            columns={"missing_count": "Count After", "missing_pct": "After (%)"}
         ),
         on="column",
         how="outer",
     ).fillna(0)
     
-    # Create visualization
+    # Add a column for improvement
+    merged["Fixed"] = merged["Count Before"] - merged["Count After"]
+    
+    # Display table first (more informative)
+    st.markdown("**Summary Table:**")
+    display_table = merged[["column", "Count Before", "Before (%)", "Count After", "After (%)", "Fixed"]].copy()
+    display_table.columns = ["Column", "Missing Before", "Before %", "Missing After", "After %", "Fixed"]
+    st.dataframe(display_table, width='stretch', hide_index=True)
+    
+    st.markdown("---")
+    
+    # Create visualization showing missing counts (more visible than percentages)
+    st.markdown("**Missing Values Count Comparison:**")
+    
+    # Prepare data for grouped bar chart
+    chart_data = []
+    for _, row in merged.iterrows():
+        chart_data.append({
+            "Column": str(row["column"]),
+            "Stage": "Before",
+            "Count": int(row["Count Before"]) if pd.notna(row["Count Before"]) else 0
+        })
+        chart_data.append({
+            "Column": str(row["column"]),
+            "Stage": "After",
+            "Count": int(row["Count After"]) if pd.notna(row["Count After"]) else 0
+        })
+    
+    chart_df = pd.DataFrame(chart_data)
+    # Ensure Count is integer type
+    chart_df["Count"] = chart_df["Count"].astype(int)
+    
     fig = px.bar(
-        merged.melt(id_vars=["column"], value_vars=["Before (%)", "After (%)"]),
-        x="column",
-        y="value",
-        color="variable",
-        labels={"value": "Missing %", "variable": "Stage"},
+        chart_df,
+        x="Column",
+        y="Count",
+        color="Stage",
+        labels={"Count": "Missing Values"},
         title="Missing Values: Before vs After Cleaning",
         barmode="group",
-        color_discrete_map={"Before (%)": "#ef553b", "After (%)": "#00cc96"}
+        color_discrete_map={"Before": "#ef553b", "After": "#00cc96"},
+        text="Count"
     )
-    fig.update_layout(height=400, hovermode="x unified")
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Display table
-    with st.expander("📋 View Detailed Analysis"):
-        st.dataframe(merged, use_container_width=True, hide_index=True)
+    fig.update_traces(texttemplate='%{text}', textposition='outside')
+    fig.update_layout(
+        height=400, 
+        hovermode="x unified",
+        yaxis_title="Number of Missing Values",
+        xaxis_title="Column"
+    )
+    st.plotly_chart(fig, width='stretch')
 
 def display_data_issues_report(data):
     """Display comprehensive report of data issues before and after cleaning"""
@@ -373,7 +409,7 @@ def display_data_issues_report(data):
         
         if issue_list:
             df_issues = pd.DataFrame(issue_list)
-            st.dataframe(df_issues, use_container_width=True, hide_index=True)
+            st.dataframe(df_issues, width='stretch', hide_index=True)
         else:
             st.success("✅ No data quality issues found!")
     
@@ -408,7 +444,7 @@ def display_data_issues_report(data):
             "After", "After %", "Fixed ✅", "Status"
         ]
         
-        st.dataframe(display_cols, use_container_width=True, hide_index=True)
+        st.dataframe(display_cols, width='stretch', hide_index=True)
         
         st.markdown("---")
         
@@ -416,16 +452,18 @@ def display_data_issues_report(data):
             merged,
             x="column",
             y=["missing_count", "missing_count_after"],
-            labels={"column": "Column", "value": "Missing Count"},
+            labels={"column": "Column", "value": "Missing Count", "variable": "Stage"},
             title="Missing Values: Before vs After by Column",
             barmode="group",
             color_discrete_map={
                 "missing_count": "#ef553b",
                 "missing_count_after": "#00cc96"
-            }
+            },
+            text="value"
         )
+        fig.update_traces(texttemplate='%{value}', textposition='outside')
         fig.update_layout(height=400, hovermode="x unified", xaxis_tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
     with tab3:
         st.markdown("### 🧹 Complete Cleaning Process")
@@ -482,7 +520,7 @@ def display_data_issues_report(data):
         ))
         
         fig_funnel.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=0), showlegend=False)
-        st.plotly_chart(fig_funnel, use_container_width=True)
+        st.plotly_chart(fig_funnel, width='stretch')
     
     with tab4:
         st.markdown("### ✅ Data Quality Assessment")
@@ -537,24 +575,27 @@ def display_downloads(data):
     with col1:
         if cleaned_file:
             fn = _basename_posix(cleaned_file)
-            url = f"{BACKEND_BASE}/api/download?kind=processed&filename={quote(fn)}"
-            st.markdown(f"[📥 Download Cleaned CSV]({url})", unsafe_allow_html=True)
+            if fn:
+                url = f"{BACKEND_BASE}/api/download?kind=processed&filename={quote(fn)}"
+                st.markdown(f"[📥 Download Cleaned CSV]({url})", unsafe_allow_html=True)
     
     with col2:
         if report_file:
             fn = _basename_posix(report_file)
-            url = f"{BACKEND_BASE}/api/download?kind=reports&filename={quote(fn)}"
-            st.markdown(f"[📄 Download PDF Report]({url})", unsafe_allow_html=True)
+            if fn:
+                url = f"{BACKEND_BASE}/api/download?kind=reports&filename={quote(fn)}"
+                st.markdown(f"[📄 Download PDF Report]({url})", unsafe_allow_html=True)
     
     with col3:
         if json_summary:
             fn = _basename_posix(json_summary)
-            url = f"{BACKEND_BASE}/api/download?kind=reports&filename={quote(fn)}"
-            st.markdown(f"[📊 Download JSON Summary]({url})", unsafe_allow_html=True)
+            if fn:
+                url = f"{BACKEND_BASE}/api/download?kind=reports&filename={quote(fn)}"
+                st.markdown(f"[📊 Download JSON Summary]({url})", unsafe_allow_html=True)
 
 # Page: Upload & Clean
-if page == "🚀 Upload & Clean":
-    st.header("🚀 Upload & Clean Your Data")
+if page == "Upload & Clean":
+    st.header("Upload & Clean Your Data")
     
     # Introduction with tabs
     intro_tab1, intro_tab2 = st.tabs(["📤 Upload", "ℹ️ How It Works"])
@@ -636,7 +677,7 @@ if page == "🚀 Upload & Clean":
             try:
                 uploaded_file.seek(0)  # Reset file pointer to beginning
                 preview_df = pd.read_csv(uploaded_file)
-                st.dataframe(preview_df.head(10), use_container_width=True)
+                st.dataframe(preview_df.head(10), width='stretch')
                 
                 with st.expander("📋 Column Information"):
                     col_info = []
@@ -647,7 +688,7 @@ if page == "🚀 Upload & Clean":
                             "Missing": preview_df[col].isna().sum(),
                             "Unique": preview_df[col].nunique()
                         })
-                    st.dataframe(pd.DataFrame(col_info), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(col_info), width='stretch', hide_index=True)
             except Exception as e:
                 st.error(f"❌ Error reading file: {e}")
         
@@ -671,7 +712,7 @@ if page == "🚀 Upload & Clean":
         st.markdown("---")
         
         # Process button
-        if st.button("🔄 Process & Clean", use_container_width=True, type="primary"):
+        if st.button("🔄 Process & Clean", width='stretch', type="primary"):
             result = process_file(uploaded_file)
             
             if result:
@@ -725,8 +766,8 @@ if page == "🚀 Upload & Clean":
             """)
 
 # Page: Analytics
-elif page == "📈 Analytics":
-    st.header("📈 Advanced Analytics Dashboard")
+elif page == "Analytics":
+    st.header("Advanced Analytics Dashboard")
     
     # Analytics information tabs
     analytics_tab1, analytics_tab2, analytics_tab3 = st.tabs(["📊 Dashboard", "📖 Guide", "💡 Tips"])
@@ -808,7 +849,7 @@ elif page == "📈 Analytics":
                         )
                     ])
                     fig.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=0))
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                 else:
                     st.info("No missing values to fix")
             
@@ -838,7 +879,7 @@ elif page == "📈 Analytics":
                                  yaxis_title="Row Count",
                                  xaxis_title="",
                                  margin=dict(l=0, r=0, t=30, b=0))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             
             with col3:
                 st.write("**Column Types**")
@@ -858,7 +899,7 @@ elif page == "📈 Analytics":
                     fig.update_layout(height=400, showlegend=False, 
                                      xaxis_title="", yaxis_title="Count",
                                      margin=dict(l=0, r=0, t=30, b=0))
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
             
             st.markdown("---")
             
@@ -901,7 +942,7 @@ elif page == "📈 Analytics":
                 )
                 fig_missing.update_layout(height=400, hovermode="x unified",
                                          xaxis_tickangle=-45)
-                st.plotly_chart(fig_missing, use_container_width=True)
+                st.plotly_chart(fig_missing, width='stretch')
                 
                 # 2. Detailed Column Stats Table
                 with st.expander("📋 Detailed Column Statistics"):
@@ -917,7 +958,7 @@ elif page == "📈 Analytics":
                             "column", "Data Type", "Unique Count",
                             "Missing Before (%)", "Missing After (%)", "Improvement"
                         ]].rename(columns={"column": "Column"}),
-                        use_container_width=True,
+                        width='stretch',
                         hide_index=True
                     )
                 
@@ -936,7 +977,7 @@ elif page == "📈 Analytics":
                     labels={"column": "Column", "Quality Score": "Quality Score (%)"}
                 )
                 fig_quality.update_layout(height=400)
-                st.plotly_chart(fig_quality, use_container_width=True)
+                st.plotly_chart(fig_quality, width='stretch')
             
             st.markdown("---")
             
@@ -974,7 +1015,7 @@ elif page == "📈 Analytics":
                         )
                         fig_before.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
                         fig_before.update_layout(height=400, xaxis_title="Completeness (%)")
-                        st.plotly_chart(fig_before, use_container_width=True)
+                        st.plotly_chart(fig_before, width='stretch')
                 
                 # AFTER cleaning
                 with col_after:
@@ -1003,7 +1044,7 @@ elif page == "📈 Analytics":
                         )
                         fig_after.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
                         fig_after.update_layout(height=400, xaxis_title="Completeness (%)")
-                        st.plotly_chart(fig_after, use_container_width=True)
+                        st.plotly_chart(fig_after, width='stretch')
         else:
             st.info("📤 Upload and process a file first to see analytics")
         
@@ -1026,10 +1067,10 @@ elif page == "📈 Analytics":
             3. Check PDF report for stakeholder sharing
             4. Use JSON summary for programmatic access
             """)
-elif page == "📜 Processing History":
-    st.header("📜 Processing History")
+elif page == "Processing History":
+    st.header("Processing History")
     
-    hist_tab1, hist_tab2 = st.tabs(["📊 History", "📖 About"])
+    hist_tab1, hist_tab2 = st.tabs(["History", "About"])
     
     with hist_tab2:
         st.markdown("""
@@ -1129,7 +1170,7 @@ elif page == "📜 Processing History":
                     
                     if history_list:
                         df_history = pd.DataFrame(history_list)
-                        st.dataframe(df_history, use_container_width=True, hide_index=True)
+                        st.dataframe(df_history, width='stretch', hide_index=True)
                         
                         st.markdown("---")
                         
@@ -1186,15 +1227,15 @@ elif page == "📜 Processing History":
             """)
 
 # Page: Settings
-elif page == "⚙️ Settings":
-    st.header("⚙️ Settings & Configuration")
+elif page == "Settings":
+    st.header("Settings & Configuration")
     
     # Tabs for different settings categories
     tab1, tab2, tab3, tab4 = st.tabs([
-        "🔧 System", 
-        "💾 Storage", 
-        "🔌 API", 
-        "📊 Preferences"
+        "System", 
+        "Storage", 
+        "API", 
+        "Preferences"
     ])
     
     with tab1:
@@ -1367,7 +1408,7 @@ elif page == "⚙️ Settings":
             st.write("• Save to history: ✓ Enabled")
             st.write("• Preserve raw data: ✓ Enabled")
         
-        if st.button("💾 Save Preferences", use_container_width=True):
+        if st.button("💾 Save Preferences", width='stretch'):
             st.success("✅ Preferences saved successfully")
     
     st.markdown("---")
