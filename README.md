@@ -1181,8 +1181,8 @@ Need help or have questions?
 - 📧 Contact: See author section below
 
 ### Resources
-- 📺 [Video Tutorials](#) (Coming soon)
-- 📝 [Blog Posts](#) (Coming soon)
+- 📺 Video Tutorials (Coming soon)
+- 📝 Blog Posts (Coming soon)
 - 💬 [Discussions](https://github.com/adriel03-dp/clean-datapro/discussions)
 
 ---
