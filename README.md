@@ -29,61 +29,160 @@
 
 ## ✨ Key Features
 
-### Data Cleaning
+### 🧹 Data Cleaning Engine
 
-- **Automatic Missing Value Imputation**: Intelligent filling of missing values based on data types
-  - Numeric columns: Filled with median values
-  - Datetime columns: Filled with earliest date
-  - Categorical columns: Filled with mode (most frequent value)
-- **Duplicate Detection and Removal**: Identifies and removes exact duplicate rows
-- **Type Inference and Conversion**: Automatically detects and converts numeric columns
-- **Column Analysis**: Detailed per-column statistics including missing percentages, unique counts, and sample values
+**Intelligent Missing Value Imputation** *(Pandas-based)*
+- **Numeric columns**: Median imputation using `pandas.Series.median()` - robust to outliers
+- **Datetime columns**: Forward-fill with earliest date using `pandas.Series.min()`
+- **Categorical columns**: Mode imputation using `pandas.Series.mode()` - most frequent value
+- **Placeholder detection**: Identifies and converts common placeholders (N/A, UNKNOWN, ERROR) to `NaN`
 
-### Data Issues Reporting (NEW)
+**Duplicate Detection & Removal** *(Pandas `drop_duplicates()`)*
+- Exact row matching algorithm with configurable strategy
+- Keeps first occurrence, removes subsequent duplicates
+- Reports duplicate count and percentage for audit trail
 
-- **Before/After Comparison**: See exactly what data quality issues existed and how they were fixed
-- **Issues Overview**: Visual summary of all problems found (duplicates, missing values)
-- **Column-by-Column Breakdown**: Understand which columns had issues and severity
-- **Cleaning Impact Dashboard**: See the complete transformation of your data
-- **Data Quality Scoring**: Track quality improvement from start to finish
+**Smart Type Inference** *(Custom algorithm + Pandas `to_numeric()`)*
+- Detects numeric columns with >80% valid numeric values
+- Safe type conversion with error handling (`errors='coerce'`)
+- Handles mixed-type columns and type inconsistencies
 
-### 📊 Advanced Reporting
+**Column-Level Statistics** *(NumPy + Pandas aggregations)*
+- Missing value counts and percentages per column
+- Unique value counts using `nunique()`
+- Sample values for data preview
+- Data type detection and reporting
 
-- **Data Issues Report**: Side-by-side before/after comparison
-  - Visual 3-column layout showing complete transformation
-  - Column-by-column breakdown of issues and fixes
-  - Data quality score improvements
-- **PDF Reports**: Professional documentation with before/after comparisons
-- **JSON Summaries**: Machine-readable metadata for automation
-- **Interactive Dashboard**: Streamlit-based interface with real-time Plotly charts
+---
 
-### 🔌 Production API
+### 📊 Advanced Reporting & Visualization
 
-- **RESTful API**: FastAPI backend with `/api/process`, `/api/download`, `/api/runs`
-- **JWT Authentication**: Secure user management with bcrypt password hashing
-- **MongoDB Integration**: Persistent storage for processing history and audit trails
-- **CORS Support**: Seamless frontend integration
-- **Interactive Docs**: Auto-generated API documentation at `/docs`
+**Data Issues Report** *(Streamlit + Plotly)*
+- **3-column before/after/cleaning layout** with color-coded metrics
+- **Interactive Plotly charts**: Bar charts for missing values, funnel charts for data flow
+- **Quality scoring algorithm**: `(1 - missing_pct) * 100` for before/after comparison
+- **4 analysis tabs**: Issues Found, Missing by Column, Cleaning Details, Final Quality
+
+**PDF Generation** *(ReportLab library)*
+- Professional reports with tables and formatted text
+- Before/after statistics with `TableStyle` formatting
+- UTC timestamp and metadata inclusion
+- Configurable page layouts and styles
+
+**JSON Summaries** *(Python `json` module)*
+- Machine-readable format for automation pipelines
+- NumPy type conversion for JSON serialization
+- Complete metadata: rows, columns, operations, timestamps
+- Nested structure: `missing_summary_before/after` arrays
+
+**Interactive Dashboard** *(Streamlit 1.24+)*
+- Real-time file upload with `st.file_uploader()`
+- Processing status tracking with session state
+- Plotly visualizations: `plotly.express` and `plotly.graph_objects`
+- Responsive design with Streamlit's column layout
+
+---
+
+### 🔌 Production API & Integration
+
+**RESTful API** *(FastAPI 0.95+ with Uvicorn ASGI)*
+- **Endpoints**:
+  - `POST /api/process` - Multipart file upload, CSV processing, returns summary JSON
+  - `GET /api/download` - Query params: `kind` (processed/reports), `filename`
+  - `GET /api/runs` - Paginated processing history from MongoDB
+  - `GET /healthz` - Health check endpoint for monitoring
+- **Async operations**: `async def` handlers for concurrent request processing
+- **Auto-documentation**: OpenAPI/Swagger at `/docs`, ReDoc at `/redoc`
+
+**Authentication System** *(JWT + bcrypt)*
+- **JWT tokens**: Generated using `pyjwt` library with configurable expiration
+- **Password hashing**: bcrypt algorithm with automatic salt generation
+- **Token validation**: Middleware-based authentication for protected routes
+- **User management**: MongoDB-backed user storage with email/password
+
+**MongoDB Integration** *(PyMongo 4.0+ driver)*
+- **Connection pooling**: Cached MongoDB client for efficient connections
+- **Collections**: `users` (authentication), `clean_runs` (processing history)
+- **Document structure**: Timestamps, user ID, file metadata, cleaning summary
+- **Automatic indexing**: For efficient queries on timestamps and user IDs
+
+**Cross-Origin Support** *(FastAPI CORSMiddleware)*
+- Configurable origins for frontend integration
+- Credential support enabled for authenticated requests
+- All HTTP methods allowed for API flexibility
 
 ---
 
 ## 🛠️ Tech Stack
 
-**Backend:** FastAPI 0.95+, Python 3.11+, Pandas 1.5+, ReportLab 4.0+, PyMongo 4.0+, APScheduler 3.8+  
-**Frontend:** Streamlit 1.24+, Plotly 5.0+  
-**Database:** MongoDB 4.0+  
-**DevOps:** Docker, pytest, Black, isort
+### Backend Technologies
+- **FastAPI 0.95+**: Modern async web framework with automatic OpenAPI docs, type validation via Pydantic
+- **Python 3.11+**: Latest Python features including improved error messages and performance optimizations
+- **Pandas 1.5+**: DataFrame-based data manipulation with vectorized operations for performance
+- **NumPy**: Numerical computing foundation for Pandas, efficient array operations
+- **ReportLab 4.0+**: PDF generation library with table formatting and custom styling
+- **PyMongo 4.0+**: Official MongoDB driver with connection pooling and async support
+- **APScheduler 3.8+**: Advanced task scheduling for background jobs and cleanup tasks
+- **bcrypt 4.0+**: Secure password hashing with automatic salt generation
+- **PyJWT 2.8+**: JSON Web Token implementation for stateless authentication
+- **python-dotenv**: Environment variable management from `.env` files
+
+### Frontend Technologies
+- **Streamlit 1.24+**: Reactive web framework with automatic rerun on user interaction
+- **Plotly 5.0+**: Interactive JavaScript-based charts with zoom, pan, and hover capabilities
+- **Requests 2.28+**: HTTP library for API communication with connection pooling
+
+### Data Processing Pipeline
+- **Pandas**: Core engine for CSV parsing, DataFrame operations, and data transformations
+- **NumPy**: Underlying numerical computations, statistical functions (median, mode, etc.)
+
+### Development & Testing
+- **pytest**: Unit testing framework with fixtures and parametrized tests
+- **Black**: Opinionated code formatter (line length: 88) for consistent style
+- **isort**: Import statement organizer compatible with Black's style
+- **Docker**: Containerization with multi-stage builds for production deployment
+
+### Infrastructure
+- **MongoDB 4.0+**: NoSQL document database for flexible schema and horizontal scaling
+- **Uvicorn**: Lightning-fast ASGI server with HTTP/1.1 and WebSocket support
 
 ---
 
-## 🎨 Unique Features
+## 🎨 Unique Features & Technical Implementation
 
-1. **Transparency-First** - Complete visibility into every operation performed
-2. **Intelligent Type Detection** - Automatic numeric column conversion with placeholder handling
-3. **Professional Reporting** - Multi-format outputs (PDF, JSON, CSV) suitable for stakeholders
-4. **Enterprise-Grade** - Authentication, audit trails, processing history
-5. **Zero-Config Intelligence** - Works out of the box with smart defaults
-6. **Modern UX** - Clean Streamlit interface with interactive Plotly visualizations
+1. **Transparency-First Architecture**
+   - Complete audit trail using MongoDB timestamped documents
+   - Before/after snapshots with `missing_summary_before/after` arrays
+   - Operation logging with structured metadata (duplicates removed, values imputed, types converted)
+
+2. **Intelligent Type Detection Algorithm**
+   - Custom heuristic: >80% numeric values → treat as numeric column
+   - Placeholder value detection using predefined set: `{N/A, UNKNOWN, ERROR, null, ...}`
+   - Safe conversion with Pandas `to_numeric(errors='coerce')` to handle edge cases
+
+3. **Multi-Format Professional Reporting**
+   - **PDF**: ReportLab with custom `TableStyle` for stakeholder distribution
+   - **JSON**: Full programmatic access with NumPy type serialization
+   - **CSV**: Cleaned data ready for downstream analysis
+   - **Interactive UI**: Streamlit with real-time Plotly visualizations
+
+4. **Enterprise-Grade Security & Persistence**
+   - JWT-based stateless authentication with configurable token expiration
+   - bcrypt password hashing with automatic salt (cost factor: 12)
+   - MongoDB document-based storage with automatic indexing
+   - Processing history with full metadata for compliance and auditing
+
+5. **Zero-Config Intelligence**
+   - Automatic data type inference using Pandas dtype detection
+   - Smart imputation strategy selection based on column characteristics
+   - Sensible defaults: median for numeric, mode for categorical, min for datetime
+   - No configuration files required - works out of the box
+
+6. **Modern Tech Stack**
+   - Async FastAPI for high-concurrency handling (ASGI server)
+   - Reactive Streamlit UI with session state management
+   - Interactive Plotly charts with JavaScript-powered zoom/pan
+   - Containerized with Docker for consistent deployments
 
 ---
 
