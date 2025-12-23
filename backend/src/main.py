@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from .routes import process as process_router
 from .routes import files as files_router
 from .routes import runs as runs_router
+from .routes import auth as auth_router
 from utils.logger import get_logger
 from . import config as cfg
 
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(process_router.router, prefix="/api")
 app.include_router(files_router.router, prefix="/api")
 app.include_router(runs_router.router, prefix="/api")
+app.include_router(auth_router.router, prefix="/api")
 
 logger = get_logger("cleandatapro.backend")
 

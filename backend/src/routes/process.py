@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pathlib import Path
 import uuid
@@ -8,6 +8,7 @@ import os
 from .. import cleaner as cleaner_mod
 from .. import report_generator as report_mod
 from ..config import get_mongo_client, MONGODB_URI
+from ..auth import verify_token
 
 # Add parent directory to path for utils import
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
@@ -26,7 +27,7 @@ for d in (RAW_DIR, PROCESSED_DIR, REPORTS_DIR):
 
 
 @router.post("/process")
-async def process_upload(file: UploadFile = File(...)):
+async def process_upload(request: Request, file: UploadFile = File(...)):
     """Accept a CSV upload, clean it and return JSON summary + paths to artifacts."""
     # validate filename exists and is a CSV
     if not file.filename or not file.filename.lower().endswith(".csv"):
@@ -72,6 +73,16 @@ async def process_upload(file: UploadFile = File(...)):
         logger.exception("Failed to generate report: %s", e)
         raise HTTPException(status_code=500, detail="Failed to generate report")
 
+    # Try to determine user from Bearer token (optional)
+    user_email = None
+    try:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+            user_email = verify_token(token)
+    except Exception:
+        user_email = None
+
     # Try to persist run summary to MongoDB (best-effort: failures won't block response)
     if MONGODB_URI:
         try:
@@ -92,6 +103,7 @@ async def process_upload(file: UploadFile = File(...)):
                     "summary": summary,
                     "uploaded_filename": file.filename,
                     "run_id": uid,
+                    "user_email": user_email,
                 }
                 coll.insert_one(doc)
                 logger.info("Persisted run summary to MongoDB (run_id=%s)", uid)
