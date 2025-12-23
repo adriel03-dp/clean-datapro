@@ -7,6 +7,7 @@ import os
 from urllib.parse import quote
 from io import BytesIO
 import time
+from auth_pages import show_login_page, show_logout_button, require_auth
 
 # Page config
 st.set_page_config(
@@ -15,6 +16,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
     menu_items={"About": "CleanDataPro - Data Cleaning & Analysis Tool"}
 )
+
+# Initialize session state
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "token" not in st.session_state:
+    st.session_state.token = None
+if "email" not in st.session_state:
+    st.session_state.email = None
+if "name" not in st.session_state:
+    st.session_state.name = None
+
+# Require authentication before loading the dashboard
+require_auth()
 
 # Custom CSS for better styling
 st.markdown("""
@@ -35,10 +49,27 @@ st.markdown("""
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         color: white;
     }
+    /* Style logout button in red */
+    .stSidebar [data-testid="stButton"] button:last-of-type {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border-color: #dc3545 !important;
+    }
+    .stSidebar [data-testid="stButton"] button:last-of-type:hover {
+        background-color: #c82333 !important;
+        border-color: #c82333 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 BACKEND_BASE = os.environ.get("CLEAN_DATAPRO_BACKEND", "http://localhost:8000")
+
+
+def _auth_headers() -> dict:
+    token = st.session_state.get("token")
+    if token:
+        return {"Authorization": f"Bearer {token}"}
+    return {}
 
 # Session state initialization
 if "processing" not in st.session_state:
@@ -48,8 +79,8 @@ if "last_result" not in st.session_state:
 
 # Sidebar navigation
 with st.sidebar:
-    st.image("https://img.icons8.com/color/96/000000/data-in-cloud.png", width=80)
     st.title("CleanDataPro")
+    st.markdown(f"**User:** {st.session_state.name or st.session_state.email}")
     st.markdown("---")
     
     page = st.radio(
@@ -59,19 +90,34 @@ with st.sidebar:
     )
     
     st.markdown("---")
+    if st.button("Logout", use_container_width=True, key="logout_btn"):
+        st.session_state.authenticated = False
+        st.session_state.token = None
+        st.session_state.email = None
+        st.session_state.name = None
+        st.rerun()
+    
+    # Footer - About section
+    st.markdown("---")
     st.markdown("""
-    ### About
+    ### About CleanDataPro
     CleanDataPro helps you:
     - Analyze data quality issues
     - Automatically clean datasets
     - Generate professional reports
     - Track processing history
-    """)
     
-    st.markdown("---")
-    st.markdown("**Version:** 1.0.0")
-    st.markdown("**Created by:** Adriel Perera")
-    st.markdown("[LinkedIn](https://www.linkedin.com/in/adriel-perera) | [GitHub](https://github.com/adriel03-dp)")
+    **Developed by:** Adriel Perera
+    
+    An undergraduate specializing in Software Engineering who created this project to improve technical skills and successfully deployed it to production.
+    
+    If you like this work, feel free to:
+    - [Connect on LinkedIn](https://www.linkedin.com/in/adriel-perera)
+    - [Check out my GitHub](https://github.com/adriel03-dp)
+    - Leave feedback or comments
+    
+    **Version:** 1.0.0
+    """)
 
 # Helper functions
 def _basename_posix(path):
@@ -89,6 +135,7 @@ def process_file(uploaded_file):
             resp = requests.post(
                 f"{BACKEND_BASE}/api/process",
                 files=files,
+                headers=_auth_headers(),
                 timeout=60
             )
             
@@ -1089,12 +1136,16 @@ elif page == "Processing History":
         
         **Storage**
         
-        History is stored in MongoDB (if configured) for persistent access across sessions.
+        History is stored in MongoDB for persistent access across sessions.
         """)
     
     with hist_tab1:
         try:
-            resp = requests.get(f"{BACKEND_BASE}/api/runs?limit=20", timeout=10)
+            resp = requests.get(
+                f"{BACKEND_BASE}/api/runs?limit=20",
+                headers=_auth_headers(),
+                timeout=10,
+            )
             if resp.status_code == 200:
                 history_data = resp.json()
                 runs = history_data.get("runs", [])
@@ -1121,7 +1172,19 @@ elif page == "Processing History":
                         st.metric("🩹 Total Issues Fixed", f"{total_missing_fixed:,}")
                     
                     with stat_col4:
-                        st.metric("📊 Average Quality Improvement", "95%")
+                        improvements = []
+                        for r in runs:
+                            s = r.get("summary", {})
+                            mb = s.get("missing_before", 0) or 0
+                            ma = s.get("missing_after", 0) or 0
+                            if mb > 0 and ma <= mb:
+                                improvements.append(((mb - ma) / mb) * 100)
+
+                        if improvements:
+                            avg_improvement = sum(improvements) / len(improvements)
+                            st.metric("📊 Average Quality Improvement", f"{avg_improvement:.1f}%")
+                        else:
+                            st.metric("📊 Average Quality Improvement", "N/A")
                     
                     st.markdown("---")
                     
@@ -1246,7 +1309,11 @@ elif page == "Settings":
         with col1:
             st.markdown("**Backend Status**")
             try:
-                resp = requests.get(f"{BACKEND_BASE}/api/runs?limit=1", timeout=5)
+                resp = requests.get(
+                    f"{BACKEND_BASE}/api/runs?limit=1",
+                    headers=_auth_headers(),
+                    timeout=5,
+                )
                 if resp.status_code == 200:
                     st.success("✅ Backend Online")
                     st.info(f"**URL:** {BACKEND_BASE}")
