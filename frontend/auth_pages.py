@@ -400,7 +400,7 @@ def _render_login_form():
     st.markdown("<h3 style='text-align:center; margin-top:0;'>Login</h3>", unsafe_allow_html=True)
 
     with st.form("login_form"):
-        email = st.text_input("Email", placeholder="you@example.com")
+        email = st.text_input("Email", placeholder="...@gmail.com")
         password = st.text_input("Password", type="password")
         submit = st.form_submit_button("Sign In", use_container_width=True)
 
