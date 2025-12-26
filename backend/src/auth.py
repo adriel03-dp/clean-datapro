@@ -4,18 +4,41 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-import pymongo
-from pymongo import MongoClient
 
-# Get MongoDB connection
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/cleandatapro")
-client = MongoClient(MONGODB_URI)
-db = client["cleandatapro"]
-users_collection = db["users"]
+try:
+    from pymongo import MongoClient
+    PYMONGO_AVAILABLE = True
+except ImportError:
+    MongoClient = None
+    PYMONGO_AVAILABLE = False
+
+# MongoDB connection (lazy-loaded)
+MONGODB_URI = os.getenv("MONGODB_URI")
+_client = None
+_db = None
+_users_collection = None
 
 # JWT secret key
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
 ALGORITHM = "HS256"
+
+
+def get_users_collection():
+    """Get the users collection, initializing MongoDB connection if needed"""
+    global _client, _db, _users_collection
+    
+    if not MONGODB_URI:
+        raise RuntimeError("MONGODB_URI environment variable not set")
+    
+    if not PYMONGO_AVAILABLE:
+        raise RuntimeError("pymongo is not installed")
+    
+    if _users_collection is None:
+        _client = MongoClient(MONGODB_URI)
+        _db = _client["cleandatapro"]
+        _users_collection = _db["users"]
+    
+    return _users_collection
 
 
 def hash_password(password: str) -> str:
@@ -54,6 +77,11 @@ def verify_token(token: str) -> Optional[str]:
 
 def register_user(email: str, password: str, name: str = "") -> dict:
     """Register a new user"""
+    try:
+        users_collection = get_users_collection()
+    except RuntimeError as e:
+        return {"success": False, "message": f"Database error: {str(e)}"}
+    
     # Check if user exists
     if users_collection.find_one({"email": email}):
         return {"success": False, "message": "Email already registered"}
@@ -82,6 +110,11 @@ def register_user(email: str, password: str, name: str = "") -> dict:
 
 def login_user(email: str, password: str) -> dict:
     """Login a user"""
+    try:
+        users_collection = get_users_collection()
+    except RuntimeError as e:
+        return {"success": False, "message": f"Database error: {str(e)}"}
+    
     user = users_collection.find_one({"email": email})
     
     if not user:
@@ -103,6 +136,11 @@ def login_user(email: str, password: str) -> dict:
 
 def get_user(email: str) -> Optional[dict]:
     """Get user information"""
+    try:
+        users_collection = get_users_collection()
+    except RuntimeError:
+        return None
+    
     user = users_collection.find_one({"email": email})
     if user:
         return {
