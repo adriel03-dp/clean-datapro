@@ -41,13 +41,17 @@ def startup_event():
         mongo_uri = cfg.MONGODB_URI
         logger.info(f"MongoDB URI configured: {bool(mongo_uri)} (length: {len(mongo_uri) if mongo_uri else 0})")
         
-        ok = cfg.test_mongo_connection()
-        if ok:
-            logger.info("✅ MongoDB connection established - processing history enabled")
+        if mongo_uri:
+            logger.info("Attempting MongoDB connection...")
+            ok = cfg.test_mongo_connection()
+            if ok:
+                logger.info("✅ MongoDB connection established - processing history enabled")
+            else:
+                logger.warning("⚠️ MongoDB connection test failed - processing history disabled (optional)")
         else:
             logger.warning("⚠️ MongoDB not configured - processing history disabled (optional)")
     except Exception as e:
-        logger.warning("⚠️ MongoDB connection optional - skipping: %s", e)
+        logger.error(f"⚠️ MongoDB connection error: {type(e).__name__}: {str(e)}", exc_info=True)
 
 
 @app.on_event("shutdown")

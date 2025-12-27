@@ -62,18 +62,28 @@ def get_mongo_client():
 
     # create client with optional ServerApi for stable API behaviour
     try:
+        import logging
+        logger = logging.getLogger("cleandatapro.backend")
+        logger.info(f"Creating MongoDB client with URI: {MONGODB_URI[:30]}...")
+        
         if _SERVER_API_AVAILABLE and ServerApi is not None:
             _CLIENT = MongoClient(
                 MONGODB_URI,
                 server_api=ServerApi("1"),
+                serverSelectionTimeoutMS=5000
             )
         else:
             _CLIENT = MongoClient(
                 MONGODB_URI,
+                serverSelectionTimeoutMS=5000
             )
-    except Exception:
+        logger.info("MongoDB client created successfully")
+    except Exception as e:
         # if client creation fails, return None so callers handle it
         # (keeps behavior simple and non-fatal)
+        import logging
+        logger = logging.getLogger("cleandatapro.backend")
+        logger.error(f"Failed to create MongoDB client: {type(e).__name__}: {str(e)}")
         _CLIENT = None
 
     return _CLIENT
