@@ -38,6 +38,9 @@ def startup_event():
     MongoDB is optional - the backend works without it, just won't save history.
     """
     try:
+        mongo_uri = cfg.MONGODB_URI
+        logger.info(f"MongoDB URI configured: {bool(mongo_uri)} (length: {len(mongo_uri) if mongo_uri else 0})")
+        
         ok = cfg.test_mongo_connection()
         if ok:
             logger.info("✅ MongoDB connection established - processing history enabled")
