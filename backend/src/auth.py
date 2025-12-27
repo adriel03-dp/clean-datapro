@@ -27,16 +27,24 @@ def get_users_collection():
     """Get the users collection, initializing MongoDB connection if needed"""
     global _client, _db, _users_collection
     
+    if not PYMONGO_AVAILABLE or MongoClient is None:
+        raise RuntimeError("pymongo is not installed")
+    
     if not MONGODB_URI:
         raise RuntimeError("MONGODB_URI environment variable not set")
     
-    if not PYMONGO_AVAILABLE:
-        raise RuntimeError("pymongo is not installed")
-    
     if _users_collection is None:
-        _client = MongoClient(MONGODB_URI)
-        _db = _client["cleandatapro"]
-        _users_collection = _db["users"]
+        try:
+            _client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+            # Test the connection
+            _client.admin.command('ping')
+            _db = _client["cleandatapro"]
+            _users_collection = _db["users"]
+        except Exception as e:
+            _client = None
+            _db = None
+            _users_collection = None
+            raise RuntimeError(f"Failed to connect to MongoDB: {str(e)}")
     
     return _users_collection
 
