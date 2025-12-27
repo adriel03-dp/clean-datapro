@@ -90,9 +90,13 @@ def test_mongo_connection(timeout: int = 5) -> bool:
         if client is None:
             return False
         # server selection / ping
-        client.admin.command({"ping": 1})
+        client.admin.command({"ping": 1}, serverSelectionTimeoutMS=timeout*1000)
         return True
-    except Exception:
+    except Exception as e:
+        # Log the actual error for debugging
+        import logging
+        logger = logging.getLogger("cleandatapro.backend")
+        logger.error(f"MongoDB connection error: {type(e).__name__}: {str(e)}")
         return False
     finally:
         # do not close the cached client here; leave it open for reuse
