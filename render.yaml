@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: clean-datapro-api
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+
+  - type: web
+    name: clean-datapro-web
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: frontend
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run streamlit_app.py --server.address 0.0.0.0 --server.port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: CLEAN_DATAPRO_BACKEND_HOST
+        fromService:
+          type: web
+          name: clean-datapro-api
+          property: host
+      - key: CLEAN_DATAPRO_BACKEND_PORT
+        fromService:
+          type: web
+          name: clean-datapro-api
+          property: port

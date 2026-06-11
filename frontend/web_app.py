@@ -11,17 +11,16 @@ from werkzeug.utils import secure_filename
 import pandas as pd
 import requests
 import json
-import os
 from pathlib import Path
 from datetime import datetime
 import io
+
+from config import BACKEND_BASE
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = "cleandatapro_secret_key_2024"
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB max file size
 app.config["UPLOAD_FOLDER"] = "temp_uploads"
-
-BACKEND_BASE = os.environ.get("CLEAN_DATAPRO_BACKEND", "http://localhost:8000")
 
 # Ensure upload folder exists
 Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
