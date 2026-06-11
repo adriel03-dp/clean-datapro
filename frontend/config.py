@@ -8,6 +8,10 @@ def get_backend_base() -> str:
     if explicit_url:
         return explicit_url.rstrip("/")
 
+    hostport = os.environ.get("CLEAN_DATAPRO_BACKEND_HOSTPORT")
+    if hostport:
+        return f"http://{hostport}"
+
     host = os.environ.get("CLEAN_DATAPRO_BACKEND_HOST")
     port = os.environ.get("CLEAN_DATAPRO_BACKEND_PORT")
     if host and port:

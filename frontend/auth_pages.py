@@ -4,6 +4,16 @@ import requests
 
 from config import BACKEND_BASE
 
+AUTH_TIMEOUT = (10, 90)
+
+
+def _backend_connection_error() -> None:
+    st.error(
+        "The backend did not respond. On Render Free, the first request can "
+        "take up to a minute while the service wakes up. Please try again."
+    )
+
+
 def show_login_page():
     """Render login/signup screen (dark mode)."""
     st.markdown(
@@ -432,10 +442,10 @@ def _render_login_form():
                     res = requests.post(
                         f"{BACKEND_BASE}/api/auth/login",
                         json={"email": email, "password": password},
-                        timeout=10,
+                        timeout=AUTH_TIMEOUT,
                     )
                 except requests.RequestException:
-                    st.error("Could not reach the backend. Make sure it is running.")
+                    _backend_connection_error()
                     return
 
             if res.status_code == 200:
@@ -482,10 +492,10 @@ def _render_signup_form():
                     res = requests.post(
                         f"{BACKEND_BASE}/api/auth/register",
                         json={"name": name, "email": email, "password": password},
-                        timeout=10,
+                        timeout=AUTH_TIMEOUT,
                     )
                 except requests.RequestException:
-                    st.error("Could not reach the backend. Make sure it is running.")
+                    _backend_connection_error()
                     return
 
             if res.status_code == 200:
