@@ -1,3 +1,26 @@
+[project]
+name = "clean-datapro"
+version = "1.0.0"
+description = "Data cleaning and reporting API"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.95.0",
+    "uvicorn[standard]>=0.18.0",
+    "pandas>=1.5.0",
+    "reportlab>=4.0.0",
+    "rich>=13.0.0",
+    "python-multipart>=0.0.5",
+    "apscheduler>=3.8.0",
+    "python-dotenv>=1.0.0",
+    "pymongo>=4.0.0",
+    "pydantic[email]>=2.0.0",
+    "plotly>=5.0.0",
+    "requests>=2.28.0",
+    "bcrypt>=4.0.0",
+    "pyjwt>=2.8.0",
+    "email-validator>=2.0.0",
+]
+
 [tool.black]
 line-length = 88
 skip-string-normalization = false
