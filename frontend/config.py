@@ -17,6 +17,9 @@ def get_backend_base() -> str:
     if host and port:
         return f"http://{host}:{port}"
 
+    if os.environ.get("RENDER"):
+        return "https://clean-datapro-api.onrender.com"
+
     return "http://localhost:8000"
 
 

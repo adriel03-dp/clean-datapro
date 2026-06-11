@@ -27,8 +27,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
-      - key: CLEAN_DATAPRO_BACKEND_HOSTPORT
-        fromService:
-          type: web
-          name: clean-datapro-api
-          property: hostport
+      - key: CLEAN_DATAPRO_BACKEND
+        value: https://clean-datapro-api.onrender.com
