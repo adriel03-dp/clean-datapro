@@ -1,7 +1,13 @@
-# Activate virtualenv (assumes .venv in backend/) and run uvicorn
-if (-Not (Test-Path -Path ".venv\Scripts\Activate.ps1")) {
-    Write-Host "Virtualenv not found in backend/.venv. Create one with: python -m venv .venv" -ForegroundColor Yellow
+$python = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+$requirements = Join-Path $PSScriptRoot "requirements.txt"
+
+if (-not (Test-Path -LiteralPath $python)) {
+    throw "Virtual environment not found. Create it with: py -3.11 -m venv backend\.venv"
 }
-. .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m uvicorn src.main:app --reload --port 8000
+
+& $python -m pip install -r $requirements
+if ($LASTEXITCODE -ne 0) {
+    throw "Dependency installation failed."
+}
+
+& $python -m uvicorn src.main:app --reload --port 8000

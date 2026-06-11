@@ -64,7 +64,7 @@ def get_mongo_client():
     try:
         import logging
         logger = logging.getLogger("cleandatapro.backend")
-        logger.info(f"Creating MongoDB client with URI: {MONGODB_URI[:30]}...")
+        logger.info("Creating MongoDB client")
         
         if _SERVER_API_AVAILABLE and ServerApi is not None:
             _CLIENT = MongoClient(
