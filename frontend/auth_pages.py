@@ -1,10 +1,8 @@
 """Authentication pages for Streamlit"""
 import streamlit as st
 import requests
-import os
 
-
-BACKEND_BASE = os.environ.get("CLEAN_DATAPRO_BACKEND", "http://localhost:8000")
+from config import BACKEND_BASE
 
 def show_login_page():
     """Render login/signup screen (dark mode)."""

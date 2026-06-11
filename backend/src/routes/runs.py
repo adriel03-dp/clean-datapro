@@ -5,12 +5,9 @@ from typing import List, Dict, Any
 
 from ..config import get_mongo_client, MONGODB_URI
 from ..auth import verify_token
+from ..storage import REPORTS_DIR
 
 router = APIRouter()
-
-BASE_DIR = Path(__file__).resolve().parents[3]
-REPORTS_DIR = BASE_DIR / "reports"
-
 
 def _read_json_summaries() -> List[Dict[str, Any]]:
     out = []
