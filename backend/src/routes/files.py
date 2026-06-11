@@ -3,13 +3,9 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import urllib.parse
 
-router = APIRouter()
+from ..storage import PROCESSED_DIR, RAW_DIR, REPORTS_DIR
 
-BASE_DIR = Path(__file__).resolve().parents[3]
-DATA_DIR = BASE_DIR / "data"
-REPORTS_DIR = BASE_DIR / "reports"
-PROCESSED_DIR = DATA_DIR / "processed"
-RAW_DIR = DATA_DIR / "raw"
+router = APIRouter()
 
 # simple whitelist directories we serve from
 SERVE_DIRS = {

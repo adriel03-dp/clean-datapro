@@ -3,11 +3,10 @@ import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import os
-from urllib.parse import quote
 from io import BytesIO
 import time
 from auth_pages import show_login_page, show_logout_button, require_auth
+from config import BACKEND_BASE
 
 # Page config
 st.set_page_config(
@@ -61,9 +60,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-BACKEND_BASE = os.environ.get("CLEAN_DATAPRO_BACKEND", "http://localhost:8000")
-
 
 def _auth_headers() -> dict:
     token = st.session_state.get("token")
@@ -612,33 +608,55 @@ def display_data_issues_report(data):
             st.warning(f"⚠️ Data quality improved by {improvement:.1f} points to {100-missing_after_pct:.1f}% complete.")
 
 def display_downloads(data):
-    """Display download links"""
-    cleaned_file = data.get("cleaned_file")
-    report_file = data.get("report_file")
-    json_summary = data.get("json_summary")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if cleaned_file:
-            fn = _basename_posix(cleaned_file)
-            if fn:
-                url = f"{BACKEND_BASE}/api/download?kind=processed&filename={quote(fn)}"
-                st.markdown(f"[📥 Download Cleaned CSV]({url})", unsafe_allow_html=True)
-    
-    with col2:
-        if report_file:
-            fn = _basename_posix(report_file)
-            if fn:
-                url = f"{BACKEND_BASE}/api/download?kind=reports&filename={quote(fn)}"
-                st.markdown(f"[📄 Download PDF Report]({url})", unsafe_allow_html=True)
-    
-    with col3:
-        if json_summary:
-            fn = _basename_posix(json_summary)
-            if fn:
-                url = f"{BACKEND_BASE}/api/download?kind=reports&filename={quote(fn)}"
-                st.markdown(f"[📊 Download JSON Summary]({url})", unsafe_allow_html=True)
+    """Fetch artifacts through the backend and offer browser downloads."""
+    artifacts = [
+        (
+            data.get("cleaned_file"),
+            "processed",
+            "Download Cleaned CSV",
+            "text/csv",
+        ),
+        (
+            data.get("report_file"),
+            "reports",
+            "Download PDF Report",
+            "application/pdf",
+        ),
+        (
+            data.get("json_summary"),
+            "reports",
+            "Download JSON Summary",
+            "application/json",
+        ),
+    ]
+
+    columns = st.columns(3)
+    for column, (path, kind, label, mime) in zip(columns, artifacts):
+        if not path:
+            continue
+
+        filename = _basename_posix(path)
+        if not filename:
+            continue
+
+        with column:
+            try:
+                response = requests.get(
+                    f"{BACKEND_BASE}/api/download",
+                    params={"kind": kind, "filename": filename},
+                    timeout=30,
+                )
+                response.raise_for_status()
+                st.download_button(
+                    label=label,
+                    data=response.content,
+                    file_name=filename,
+                    mime=mime,
+                    use_container_width=True,
+                )
+            except requests.RequestException:
+                st.error(f"{label} is temporarily unavailable.")
+
 
 # Page: Upload & Clean
 if page == "Upload & Clean":

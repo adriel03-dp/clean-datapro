@@ -9,6 +9,7 @@ from .. import cleaner as cleaner_mod
 from .. import report_generator as report_mod
 from ..config import get_mongo_client, MONGODB_URI
 from ..auth import verify_token
+from ..storage import RAW_DIR, PROCESSED_DIR, REPORTS_DIR
 
 # Add parent directory to path for utils import
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
@@ -16,15 +17,6 @@ from backend.utils.logger import get_logger
 
 router = APIRouter()
 logger = get_logger("cleandatapro.backend.process")
-
-DATA_DIR = Path(__file__).resolve().parents[3] / "data"
-RAW_DIR = DATA_DIR / "raw"
-PROCESSED_DIR = DATA_DIR / "processed"
-REPORTS_DIR = Path(__file__).resolve().parents[3] / "reports"
-
-for d in (RAW_DIR, PROCESSED_DIR, REPORTS_DIR):
-    d.mkdir(parents=True, exist_ok=True)
-
 
 @router.post("/process")
 async def process_upload(request: Request, file: UploadFile = File(...)):
