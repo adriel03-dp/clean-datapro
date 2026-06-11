@@ -1,7 +1,14 @@
-# Activate virtualenv for frontend demo and run Streamlit
-if (-Not (Test-Path -Path ".venv-front\Scripts\Activate.ps1")) {
-    Write-Host "Virtualenv not found in frontend/.venv-front. Create one with: python -m venv .venv-front" -ForegroundColor Yellow
+$python = Join-Path $PSScriptRoot "..\.venv\Scripts\python.exe"
+$requirements = Join-Path $PSScriptRoot "requirements.txt"
+$app = Join-Path $PSScriptRoot "streamlit_app.py"
+
+if (-not (Test-Path -LiteralPath $python)) {
+    throw "Virtual environment not found. Create it with: py -3.11 -m venv .venv"
 }
-. .\.venv-front\Scripts\Activate.ps1
-pip install -r frontend\requirements.txt
-streamlit run frontend\streamlit_app.py
+
+& $python -m pip install -r $requirements
+if ($LASTEXITCODE -ne 0) {
+    throw "Dependency installation failed."
+}
+
+& $python -m streamlit run $app

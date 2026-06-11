@@ -83,7 +83,7 @@ def show_login_page():
 
         /* Floating feature cards (decorative) */
         .cdp-floating {
-            position: fixed;
+            position: absolute;
             z-index: 2;
             pointer-events: none;
         }
@@ -104,7 +104,7 @@ def show_login_page():
         }
 
         .cdp-chart {
-            position: fixed;
+            position: absolute;
             z-index: 1;
             pointer-events: none;
             width: 220px;
@@ -194,11 +194,9 @@ def show_login_page():
             100% { transform: rotate(360deg); }
         }
 
-        .cdp-chart-1 { top: 420px; left: 96px; animation: cdpFloat 3.2s ease-in-out infinite; }
-        /* Place Run trend between top-left feature and Quality/Issues */
-        .cdp-chart-2 { top: 250px; left: 96px; animation: cdpBounce 3.0s ease-in-out infinite; }
-        /* Keep Completion on the right */
-        .cdp-chart-3 { bottom: 260px; right: 132px; animation: cdpFloat 3.6s ease-in-out infinite; }
+        .cdp-chart-1 { top: 445px; left: 6vw; animation: cdpFloat 3.2s ease-in-out infinite; }
+        .cdp-chart-2 { top: 245px; left: 6vw; animation: cdpBounce 3.0s ease-in-out infinite; }
+        .cdp-chart-3 { top: 360px; right: 7vw; animation: cdpFloat 3.6s ease-in-out infinite; }
         .cdp-badge {
             width: 285px;
             padding: 16px 16px;
@@ -226,19 +224,20 @@ def show_login_page():
         .cdp-badge {
             animation: cdpFadeUp 520ms ease-out;
         }
-        .cdp-float-1 { top: 92px; left: 92px; }
-        .cdp-float-2 { top: 128px; right: 92px; }
-        .cdp-float-3 { bottom: 104px; left: 92px; }
-        .cdp-float-4 { bottom: 104px; right: 92px; }
+        .cdp-float-1 { top: 55px; left: 6vw; }
+        .cdp-float-2 { top: 75px; right: 6vw; }
+        .cdp-float-3 { top: 650px; left: 6vw; }
+        .cdp-float-4 { top: 650px; right: 6vw; }
 
-        @media (max-width: 1100px) {
+        @media (max-width: 1450px), (max-height: 820px) {
             .cdp-floating, .cdp-chart { display: none; }
         }
         [data-testid="stSidebar"] {
             display: none;
         }
         [data-testid="stMainBlockContainer"] {
-            padding-top: 4rem;
+            padding-top: 2rem;
+            padding-bottom: 3rem;
             max-width: 520px;
             animation: cdpFadeUp 260ms ease-out;
             position: relative;
@@ -249,7 +248,7 @@ def show_login_page():
             background: var(--cdp-card);
             border: 1px solid var(--cdp-border);
             border-radius: 14px;
-            padding: 28px;
+            padding: 24px;
             animation: cdpFadeUp 320ms ease-out;
             overflow: hidden;
                         /* Shadow + glow coming from behind the form */
@@ -312,6 +311,26 @@ def show_login_page():
         div[data-testid="stForm"] button:hover {
             filter: brightness(1.05);
             transform: translateY(-1px);
+        }
+        @media (max-width: 700px) {
+            [data-testid="stMainBlockContainer"] {
+                padding: 1.25rem 1rem 2rem;
+            }
+            div[data-testid="stForm"] {
+                padding: 20px;
+                border-radius: 12px;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .stApp::before,
+            .stApp::after,
+            .cdp-floating,
+            .cdp-chart,
+            .cdp-title,
+            div[data-testid="stForm"],
+            div[data-testid="stForm"]::before {
+                animation: none !important;
+            }
         }
         </style>
         """,
