@@ -14,7 +14,7 @@ def _backend_connection_error() -> None:
     )
 
 
-def show_login_page():
+def _show_login_page_legacy():
     """Render login/signup screen (dark mode)."""
     st.markdown(
         """
@@ -411,6 +411,403 @@ def show_login_page():
         _render_signup_form()
 
 
+def show_login_page():
+    """Render the premium light authentication experience."""
+    st.markdown(
+        """
+        <style>
+        :root {
+            --auth-ink: #0b1739;
+            --auth-muted: #65708a;
+            --auth-blue: #246bfe;
+            --auth-green: #12b76a;
+            --auth-red: #ff4d5e;
+            --auth-line: #e4e9f2;
+            --auth-soft: #f5f8ff;
+            --auth-card: rgba(255, 255, 255, 0.94);
+        }
+        @keyframes authRise {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes authDrift {
+            0%, 100% { transform: translate3d(0, 0, 0); }
+            50% { transform: translate3d(0, -8px, 0); }
+        }
+        .stApp {
+            color: var(--auth-ink);
+            background:
+                radial-gradient(circle at 7% 8%, rgba(36, 107, 254, 0.12), transparent 28%),
+                radial-gradient(circle at 88% 82%, rgba(18, 183, 106, 0.10), transparent 26%),
+                linear-gradient(135deg, #ffffff 0%, #f7faff 48%, #f2f7ff 100%);
+        }
+        [data-testid="stHeader"],
+        [data-testid="stToolbar"],
+        [data-testid="stSidebar"] {
+            display: none;
+        }
+        [data-testid="stMainBlockContainer"] {
+            max-width: 1180px;
+            padding: 2.5rem 2rem 3rem;
+        }
+        [data-testid="stHorizontalBlock"] {
+            align-items: center;
+            gap: 4rem;
+            min-height: calc(100vh - 5.5rem);
+        }
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+            padding: 1rem 0;
+            animation: authRise 520ms ease-out both;
+        }
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+            padding: 2rem;
+            border: 1px solid rgba(222, 228, 240, 0.9);
+            border-radius: 24px;
+            background: var(--auth-card);
+            box-shadow:
+                0 28px 70px rgba(30, 64, 175, 0.12),
+                0 8px 24px rgba(15, 23, 42, 0.06);
+            backdrop-filter: blur(18px);
+            animation: authRise 520ms 90ms ease-out both;
+        }
+        .auth-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 2.2rem;
+        }
+        .auth-logo {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 13px;
+            color: white;
+            font-size: 1.35rem;
+            font-weight: 900;
+            background: linear-gradient(145deg, var(--auth-blue), #1c9cff);
+            box-shadow: 0 10px 24px rgba(36, 107, 254, 0.25);
+        }
+        .auth-brand-name {
+            color: var(--auth-ink);
+            font-size: 1.18rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+        .auth-brand-name span { color: var(--auth-blue); }
+        .auth-brand-tag {
+            color: var(--auth-muted);
+            font-size: 0.72rem;
+            margin-top: 1px;
+        }
+        .auth-hero h1 {
+            max-width: 560px;
+            margin: 0;
+            color: var(--auth-ink);
+            font-size: clamp(2.35rem, 4.4vw, 4.35rem);
+            line-height: 0.98;
+            letter-spacing: -0.055em;
+        }
+        .auth-hero h1 .blue { color: var(--auth-blue); }
+        .auth-hero h1 .green { color: var(--auth-green); }
+        .auth-hero > p {
+            max-width: 540px;
+            margin: 1.25rem 0 1.65rem;
+            color: var(--auth-muted);
+            font-size: 1rem;
+            line-height: 1.65;
+        }
+        .auth-features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .auth-feature {
+            display: grid;
+            grid-template-columns: 42px 1fr;
+            gap: 12px;
+            align-items: center;
+            padding: 14px;
+            border: 1px solid var(--auth-line);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.78);
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+        }
+        .auth-feature-icon {
+            display: grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            color: var(--auth-blue);
+            font-size: 1.15rem;
+            background: #edf4ff;
+        }
+        .auth-feature:nth-child(2) .auth-feature-icon {
+            color: var(--auth-green);
+            background: #eafbf3;
+        }
+        .auth-feature:nth-child(3) .auth-feature-icon {
+            color: #7c3aed;
+            background: #f3efff;
+        }
+        .auth-feature:nth-child(4) .auth-feature-icon {
+            color: var(--auth-red);
+            background: #fff0f2;
+        }
+        .auth-feature strong {
+            display: block;
+            color: var(--auth-ink);
+            font-size: 0.84rem;
+        }
+        .auth-feature small {
+            display: block;
+            margin-top: 2px;
+            color: var(--auth-muted);
+            font-size: 0.69rem;
+            line-height: 1.35;
+        }
+        .auth-insights {
+            margin-top: 14px;
+            padding: 16px;
+            border: 1px solid var(--auth-line);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.88);
+        }
+        .auth-insights-label {
+            color: var(--auth-muted);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .auth-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .auth-metric {
+            padding: 12px;
+            border-radius: 13px;
+            background: var(--auth-soft);
+        }
+        .auth-metric span {
+            display: block;
+            color: var(--auth-muted);
+            font-size: 0.66rem;
+        }
+        .auth-metric strong {
+            display: block;
+            margin-top: 4px;
+            color: var(--auth-ink);
+            font-size: 1.05rem;
+        }
+        .auth-metric em {
+            color: var(--auth-green);
+            font-size: 0.65rem;
+            font-style: normal;
+            font-weight: 700;
+        }
+        .auth-card-head {
+            margin-bottom: 1.15rem;
+        }
+        .auth-card-head .eyebrow {
+            color: var(--auth-blue);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .auth-card-head h2 {
+            margin: 0.35rem 0 0.35rem;
+            color: var(--auth-ink);
+            font-size: 1.8rem;
+            letter-spacing: -0.035em;
+        }
+        .auth-card-head p {
+            margin: 0;
+            color: var(--auth-muted);
+            font-size: 0.86rem;
+        }
+        [data-baseweb="tab-list"] {
+            gap: 8px;
+            padding: 5px;
+            border-radius: 12px;
+            background: #f1f5fb;
+        }
+        [data-baseweb="tab"] {
+            flex: 1;
+            justify-content: center;
+            height: 42px;
+            border-radius: 9px;
+            color: var(--auth-muted);
+            font-weight: 700;
+        }
+        [aria-selected="true"][data-baseweb="tab"] {
+            color: var(--auth-blue);
+            background: white;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+        }
+        [data-baseweb="tab-highlight"],
+        [data-baseweb="tab-border"] {
+            display: none;
+        }
+        div[data-testid="stForm"] {
+            margin-top: 0.9rem;
+            padding: 0;
+            border: 0;
+            background: transparent;
+        }
+        div[data-testid="stForm"] h3 {
+            margin: 0 0 0.2rem;
+            color: var(--auth-ink);
+            font-size: 1.2rem;
+            letter-spacing: -0.02em;
+        }
+        div[data-testid="stTextInput"] label p {
+            color: #26324d;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+        div[data-testid="stTextInput"] input {
+            min-height: 48px;
+            color: var(--auth-ink);
+            border: 1px solid #dfe5ef;
+            border-radius: 10px;
+            background: #fbfcff;
+            box-shadow: none;
+        }
+        div[data-testid="stTextInput"] input:focus {
+            border-color: var(--auth-blue);
+            box-shadow: 0 0 0 3px rgba(36, 107, 254, 0.12);
+        }
+        div[data-testid="stFormSubmitButton"] button {
+            min-height: 48px;
+            margin-top: 0.4rem;
+            border: 0;
+            border-radius: 10px;
+            color: white;
+            font-weight: 800;
+            background: linear-gradient(100deg, var(--auth-blue), #2855f7);
+            box-shadow: 0 10px 22px rgba(36, 107, 254, 0.22);
+            transition: transform 150ms ease, box-shadow 150ms ease;
+        }
+        div[data-testid="stFormSubmitButton"] button:hover {
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 14px 26px rgba(36, 107, 254, 0.28);
+        }
+        [data-testid="stAlert"] {
+            border-radius: 11px;
+            font-size: 0.82rem;
+        }
+        .auth-secure {
+            margin-top: 1rem;
+            color: var(--auth-muted);
+            font-size: 0.72rem;
+            text-align: center;
+        }
+        @media (max-width: 900px) {
+            [data-testid="stMainBlockContainer"] {
+                max-width: 620px;
+                padding: 1.5rem 1rem 2.5rem;
+            }
+            [data-testid="stHorizontalBlock"] {
+                display: block;
+                min-height: auto;
+            }
+            [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {
+                display: none;
+            }
+            [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+                width: 100% !important;
+                padding: 1.35rem;
+                border-radius: 18px;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+                animation: none !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    intro, auth = st.columns([1.08, 0.92], gap="large")
+
+    with intro:
+        st.markdown(
+            """
+            <section class="auth-hero">
+                <div class="auth-brand">
+                    <div class="auth-logo">C</div>
+                    <div>
+                        <div class="auth-brand-name">CleanData<span>Pro</span></div>
+                        <div class="auth-brand-tag">Clean. Analyze. Transform.</div>
+                    </div>
+                </div>
+                <h1>Transform messy data into
+                    <span class="green">clear</span>
+                    <span class="blue">insights.</span>
+                </h1>
+                <p>Detect quality issues, clean datasets automatically, and
+                    turn unreliable CSV files into analysis-ready data.</p>
+                <div class="auth-features">
+                    <div class="auth-feature">
+                        <div class="auth-feature-icon">⌕</div>
+                        <div><strong>Detect issues</strong><small>Find missing values, duplicates, and invalid formats.</small></div>
+                    </div>
+                    <div class="auth-feature">
+                        <div class="auth-feature-icon">✓</div>
+                        <div><strong>Smart cleaning</strong><small>Repair common data problems automatically.</small></div>
+                    </div>
+                    <div class="auth-feature">
+                        <div class="auth-feature-icon">▥</div>
+                        <div><strong>Visualize quality</strong><small>Compare before-and-after quality metrics.</small></div>
+                    </div>
+                    <div class="auth-feature">
+                        <div class="auth-feature-icon">⇩</div>
+                        <div><strong>Export reports</strong><small>Download cleaned CSV, PDF, and JSON files.</small></div>
+                    </div>
+                </div>
+                <div class="auth-insights">
+                    <div class="auth-insights-label">Data quality overview</div>
+                    <div class="auth-metrics">
+                        <div class="auth-metric"><span>Rows processed</span><strong>24,532</strong><em>↑ ready to analyze</em></div>
+                        <div class="auth-metric"><span>Issues detected</span><strong>1,245</strong><em>✓ identified</em></div>
+                        <div class="auth-metric"><span>Quality score</span><strong>92%</strong><em>↑ improved</em></div>
+                    </div>
+                </div>
+            </section>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with auth:
+        st.markdown(
+            """
+            <div class="auth-card-head">
+                <div class="eyebrow">Your data workspace</div>
+                <h2>Welcome to CleanDataPro</h2>
+                <p>Sign in or create an account to start cleaning your data.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        tab_login, tab_signup = st.tabs(["Sign in", "Create account"])
+        with tab_login:
+            _render_login_form()
+        with tab_signup:
+            _render_signup_form()
+        st.markdown(
+            '<div class="auth-secure">Secure authentication • Your data stays private</div>',
+            unsafe_allow_html=True,
+        )
+
+
 def _safe_error_message(res: requests.Response) -> str:
     try:
         payload = res.json()
@@ -424,7 +821,7 @@ def _safe_error_message(res: requests.Response) -> str:
 
 def _render_login_form():
     """Simple login form"""
-    st.markdown("<h3 style='text-align:center; margin-top:0;'>Login</h3>", unsafe_allow_html=True)
+    st.markdown("<h3>Welcome back</h3>", unsafe_allow_html=True)
 
     with st.form("login_form"):
         email = st.text_input("Email", placeholder="...@gmail.com")
@@ -462,7 +859,7 @@ def _render_login_form():
 
 def _render_signup_form():
     """Simple signup form"""
-    st.markdown("<h3 style='text-align:center; margin-top:0;'>Create account</h3>", unsafe_allow_html=True)
+    st.markdown("<h3>Create your workspace</h3>", unsafe_allow_html=True)
 
     with st.form("signup_form"):
         name = st.text_input("Full Name")
