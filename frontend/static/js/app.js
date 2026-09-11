@@ -5,6 +5,10 @@ let currentFile = null;
 let lastResult = null;
 let charts = {};
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+}
+
 // ========== THEME MANAGEMENT ==========
 function initializeTheme() {
     const isDarkMode = localStorage.getItem('cleandatapro-dark-mode') === 'true';
@@ -24,7 +28,7 @@ function toggleTheme() {
 function updateThemeToggleIcon(isDarkMode) {
     const toggle = document.getElementById('theme-toggle');
     if (toggle) {
-        toggle.textContent = isDarkMode ? '☀️' : '🌙';
+        toggle.textContent = isDarkMode ? '☼' : '◐';
     }
 }
 
@@ -115,7 +119,7 @@ function initializeApp() {
 
 // Setup navigation menu
 function setupNavigationMenu() {
-    const navItems = document.querySelectorAll('.nav-item');
+    const navItems = document.querySelectorAll('.nav-item, [data-page]');
     const pages = document.querySelectorAll('.page');
     
     navItems.forEach(item => {
@@ -148,6 +152,9 @@ function setupFileHandling() {
     
     // Click to select file
     fileInputBtn.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInput.click(); }
+    });
     
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
@@ -183,7 +190,7 @@ function setupFileHandling() {
 
 // Handle file selection
 async function handleFileSelect(file) {
-    if (!file.name.endsWith('.csv')) {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
         showError('Only CSV files are supported');
         return;
     }
@@ -214,9 +221,9 @@ function displayFilePreview(data) {
     const uploadArea = document.getElementById('upload-area');
     const resultsSection = document.getElementById('results-section');
     
-    uploadArea.style.display = 'none';
-    resultsSection.style.display = 'none';
-    previewSection.style.display = 'block';
+    uploadArea.hidden = true;
+    resultsSection.hidden = true;
+    previewSection.hidden = false;
     previewSection.classList.add('fade-in-up');
     
     // Fill in file info
@@ -239,7 +246,7 @@ function displayFilePreview(data) {
     sorted.forEach(([col, info]) => {
         const row = `
             <tr class="fade-in-up">
-                <td>${col}</td>
+                <td>${escapeHtml(col)}</td>
                 <td>${info.count}</td>
                 <td><span class="missing-badge">${info.pct}%</span></td>
             </tr>
@@ -268,7 +275,7 @@ function displayDataPreview(data) {
     // Create header
     thead.innerHTML = '';
     data.columns.forEach(col => {
-        thead.insertAdjacentHTML('beforeend', `<th>${col}</th>`);
+        thead.insertAdjacentHTML('beforeend', `<th scope="col">${escapeHtml(col)}</th>`);
     });
     
     // Create body
@@ -277,7 +284,7 @@ function displayDataPreview(data) {
         let rowHTML = '<tr>';
         data.columns.forEach(col => {
             const value = row[col] !== null ? row[col] : '<em>null</em>';
-            rowHTML += `<td>${value}</td>`;
+            rowHTML += `<td>${value === '<em>null</em>' ? value : escapeHtml(value)}</td>`;
         });
         rowHTML += '</tr>';
         tbody.insertAdjacentHTML('beforeend', rowHTML);
@@ -298,8 +305,8 @@ async function processFile() {
         const previewSection = document.getElementById('preview-section');
         const loadingSpinner = document.getElementById('loading-spinner');
         
-        previewSection.style.display = 'none';
-        loadingSpinner.style.display = 'flex';
+        previewSection.hidden = true;
+        loadingSpinner.hidden = false;
         
         // Simulate progress
         updateProgress(0, 'Initializing...');
@@ -324,15 +331,15 @@ async function processFile() {
         // Show completion toast
         setTimeout(() => {
             displayResults(lastResult);
-            loadingSpinner.style.display = 'none';
+            loadingSpinner.hidden = true;
             showToast('✅ File processed successfully!', 'success', 3000);
         }, 300);
     } catch (error) {
         showError(`Error processing file: ${error.response?.data?.error || error.message}`);
         const loadingSpinner = document.getElementById('loading-spinner');
-        loadingSpinner.style.display = 'none';
+        loadingSpinner.hidden = true;
         const previewSection = document.getElementById('preview-section');
-        previewSection.style.display = 'block';
+        previewSection.hidden = false;
     }
 }
 
@@ -341,7 +348,7 @@ function displayResults(data) {
     const resultsSection = document.getElementById('results-section');
     const summary = data.summary || {};
     
-    resultsSection.style.display = 'block';
+    resultsSection.hidden = false;
     resultsSection.classList.add('fade-in-up');
     
     // Animate metric cards
@@ -475,7 +482,7 @@ function setupDownloads(data) {
         const fn = getFilename(cleaned);
         const link = document.createElement('a');
         link.href = `/download/processed/${encodeURIComponent(fn)}`;
-        link.textContent = '📥 Download Cleaned CSV';
+        link.textContent = 'Download cleaned CSV →';
         downloadButtons.appendChild(link);
     }
     
@@ -483,7 +490,7 @@ function setupDownloads(data) {
         const fn = getFilename(report);
         const link = document.createElement('a');
         link.href = `/download/reports/${encodeURIComponent(fn)}`;
-        link.textContent = '📄 Download PDF Report';
+        link.textContent = 'Download PDF report →';
         downloadButtons.appendChild(link);
     }
     
@@ -491,7 +498,7 @@ function setupDownloads(data) {
         const fn = getFilename(json);
         const link = document.createElement('a');
         link.href = `/download/reports/${encodeURIComponent(fn)}`;
-        link.textContent = '📊 Download JSON Summary';
+        link.textContent = 'Download JSON summary →';
         downloadButtons.appendChild(link);
     }
 }
@@ -499,9 +506,9 @@ function setupDownloads(data) {
 // Reset upload
 function resetUpload() {
     document.getElementById('file-input').value = '';
-    document.getElementById('upload-area').style.display = 'block';
-    document.getElementById('preview-section').style.display = 'none';
-    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('upload-area').hidden = false;
+    document.getElementById('preview-section').hidden = true;
+    document.getElementById('results-section').hidden = true;
     currentFile = null;
     updateProgress(0);
 }
@@ -527,11 +534,11 @@ async function loadHistory() {
         runs.forEach((run, index) => {
             const row = `
                 <tr class="fade-in-up" style="animation-delay: ${index * 50}ms;">
-                    <td>${run.uploaded_filename || 'Unknown'}</td>
-                    <td><code>${(run.run_id || 'N/A').substring(0, 8)}</code></td>
+                    <td>${escapeHtml(run.uploaded_filename || 'Unknown')}</td>
+                    <td><code>${escapeHtml((run.run_id || 'N/A').substring(0, 8))}</code></td>
                     <td>${(run.summary?.original_rows || 'N/A').toLocaleString()}</td>
                     <td>${(run.summary?.cleaned_rows || 'N/A').toLocaleString()}</td>
-                    <td><span class="metric-badge">${run.summary?.dropped_duplicates || 0}</span></td>
+                    <td><span class="missing-badge">${run.summary?.dropped_duplicates || 0}</span></td>
                 </tr>
             `;
             tbody.insertAdjacentHTML('beforeend', row);
@@ -549,13 +556,13 @@ async function loadHistory() {
 // Refresh analytics
 function refreshAnalytics() {
     if (!lastResult) {
-        document.getElementById('analytics-empty').style.display = 'block';
-        document.getElementById('analytics-content').style.display = 'none';
+        document.getElementById('analytics-empty').hidden = false;
+        document.getElementById('analytics-content').hidden = true;
         return;
     }
     
-    document.getElementById('analytics-empty').style.display = 'none';
-    document.getElementById('analytics-content').style.display = 'block';
+    document.getElementById('analytics-empty').hidden = true;
+    document.getElementById('analytics-content').hidden = false;
     document.getElementById('analytics-content').classList.add('fade-in-up');
     
     const summary = lastResult.summary || {};
@@ -765,9 +772,11 @@ function setBackendStatus(online) {
     
     if (online) {
         dot.classList.add('online');
+        dot.classList.remove('offline');
         text.textContent = 'Backend Online';
     } else {
         dot.classList.remove('online');
+        dot.classList.add('offline');
         text.textContent = 'Backend Offline';
     }
 }
@@ -804,10 +813,10 @@ function setupEventListeners() {
 
 // Show toast notification
 function showToast(message, type = 'info', duration = 4000) {
-    let container = document.getElementById('toast-container');
+    let container = document.getElementById('toast-region');
     if (!container) {
         container = document.createElement('div');
-        container.id = 'toast-container';
+        container.id = 'toast-region';
         container.style.cssText = `
             position: fixed;
             top: 20px;
@@ -823,10 +832,10 @@ function showToast(message, type = 'info', duration = 4000) {
     
     const toast = document.createElement('div');
     
-    const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#667eea' };
+    const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3157d5' };
     const icons = { success: '✓', error: '✕', warning: '!', info: 'i' };
     
-    toast.style.cssText = `
+        toast.style.cssText = `
         background: white;
         padding: 16px 24px;
         border-radius: 12px;
@@ -843,7 +852,7 @@ function showToast(message, type = 'info', duration = 4000) {
     
     toast.innerHTML = `
         <span style="color: ${colors[type]}; font-weight: bold; font-size: 18px;">${icons[type]}</span>
-        <span>${message}</span>
+        <span>${escapeHtml(message)}</span>
     `;
     
     container.appendChild(toast);

@@ -32,7 +32,7 @@ processing_results = {}
 @app.route("/")
 def index():
     """Home page"""
-    return render_template("index.html")
+    return render_template("index.html", backend_url=BACKEND_BASE)
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -45,7 +45,7 @@ def upload_file():
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
     
-    if not file.filename.endswith(".csv"):
+    if not file.filename.lower().endswith(".csv"):
         return jsonify({"error": "Only CSV files are supported"}), 400
     
     try:
@@ -67,7 +67,7 @@ def upload_file():
             "missing_summary": {
                 col: {
                     "count": int(df[col].isna().sum()),
-                    "pct": round((df[col].isna().sum() / len(df)) * 100, 2)
+                    "pct": round((df[col].isna().sum() / len(df)) * 100, 2) if len(df) else 0
                 }
                 for col in df.columns
             }
@@ -129,7 +129,7 @@ def get_history():
 def test_backend():
     """Test backend connection"""
     try:
-        resp = requests.get(f"{BACKEND_BASE}/api/runs?limit=1", timeout=5)
+        resp = requests.get(f"{BACKEND_BASE}/healthz", timeout=5)
         if resp.status_code == 200:
             return jsonify({"success": True, "message": "Backend is online"})
         else:

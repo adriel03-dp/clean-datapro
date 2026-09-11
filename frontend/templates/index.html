@@ -1,338 +1,45 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CleanDataPro - Data Cleaning & Analysis</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f8fc">
+    <title>CleanData Pro · Data quality workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js" defer></script>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Sidebar Navigation -->
-        <sidebar class="sidebar">
-            <div class="sidebar-header">
-                <h1>🧹 CleanDataPro</h1>
-                <p class="subtitle">Data Cleaning & Analysis</p>
+    <a class="skip-link" href="#main-content">Skip to workspace</a>
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Primary navigation">
+            <div>
+                <a class="brand" href="#upload" aria-label="CleanData Pro home"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>CleanData <b>Pro</b></span></a>
+                <p class="eyebrow sidebar-eyebrow">DATA QUALITY WORKSPACE</p>
+                <nav class="nav-menu">
+                    <button class="nav-item active" data-page="upload" type="button"><span class="nav-icon" aria-hidden="true">↥</span>Upload &amp; clean</button>
+                    <button class="nav-item" data-page="analytics" type="button"><span class="nav-icon" aria-hidden="true">◒</span>Analytics</button>
+                    <button class="nav-item" data-page="history" type="button"><span class="nav-icon" aria-hidden="true">◷</span>History</button>
+                    <button class="nav-item" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true">⚙</span>Settings</button>
+                </nav>
             </div>
-            
-            <nav class="nav-menu">
-                <button class="nav-item active" data-page="upload">
-                    <span class="icon">🚀</span> Upload & Clean
-                </button>
-                <button class="nav-item" data-page="analytics">
-                    <span class="icon">📈</span> Analytics
-                </button>
-                <button class="nav-item" data-page="history">
-                    <span class="icon">📜</span> History
-                </button>
-                <button class="nav-item" data-page="settings">
-                    <span class="icon">⚙️</span> Settings
-                </button>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="status-indicator">
-                    <div class="status-dot" id="backend-status"></div>
-                    <span id="backend-text">Checking...</span>
-                </div>
-                <p class="version">v1.0.0</p>
-            </div>
-        </sidebar>
-        
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Upload & Clean Page -->
-            <section id="upload-page" class="page active">
-                <header class="page-header">
-                    <h2>🚀 Upload & Clean Your Data</h2>
-                    <p>Upload a CSV file to analyze and clean your dataset</p>
-                </header>
-                
-                <div class="container">
-                    <!-- Upload Area -->
-                    <div class="upload-section">
-                        <div class="upload-area" id="upload-area">
-                            <svg class="upload-icon" viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                            </svg>
-                            <h3>Drag and drop your CSV file here</h3>
-                            <p>or</p>
-                            <button class="btn btn-primary" id="file-input-btn">
-                                Choose File
-                            </button>
-                            <div class="tooltip-container" style="margin-top: 10px; display: inline-block;">
-                                <span style="color: #666; font-size: 13px; cursor: help;">ℹ️</span>
-                                <span class="tooltip-text">Supported format: CSV only. Max size: 100MB</span>
-                            </div>
-                            <input type="file" id="file-input" accept=".csv" style="display: none;">
-                        </div>
-                    </div>
-                    
-                    <!-- File Preview -->
-                    <div id="preview-section" class="preview-section" style="display: none;">
-                        <div class="card">
-                            <h3>📋 File Preview</h3>
-                            <div class="file-info">
-                                <p><strong>Filename:</strong> <span id="preview-filename"></span></p>
-                                <p><strong>Size:</strong> <span id="preview-size"></span></p>
-                                <p><strong>Rows × Columns:</strong> <span id="preview-shape"></span></p>
-                            </div>
-                            
-                            <div class="missing-summary">
-                                <h4>Missing Values Summary</h4>
-                                <table id="missing-table" class="summary-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Column</th>
-                                            <th>Missing Count</th>
-                                            <th>Missing %</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                            
-                            <h4>Data Preview (First 10 rows)</h4>
-                            <div class="table-wrapper">
-                                <table id="preview-table" class="data-table">
-                                    <thead></thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                            
-                            <div class="action-buttons">
-                                <button class="btn btn-success" id="process-btn">
-                                    🔄 Process & Clean
-                                </button>
-                                <button class="btn btn-secondary" id="upload-again-btn">
-                                    ✏️ Upload Different File
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Results Section -->
-                    <div id="results-section" class="results-section" style="display: none;">
-                        <div class="card">
-                            <h3>✅ Processing Complete!</h3>
-                            
-                            <div class="metrics-grid">
-                                <div class="metric-card tooltip-container">
-                                    <div class="metric-value" id="metric-original">-</div>
-                                    <div class="metric-label">Original Rows</div>
-                                    <span class="tooltip-text">Total rows before cleaning</span>
-                                </div>
-                                <div class="metric-card tooltip-container">
-                                    <div class="metric-value" id="metric-cleaned">-</div>
-                                    <div class="metric-label">Cleaned Rows</div>
-                                    <span class="tooltip-text">Rows after removing duplicates</span>
-                                </div>
-                                <div class="metric-card metric-warning tooltip-container">
-                                    <div class="metric-value" id="metric-duplicates">-</div>
-                                    <div class="metric-label">Duplicates Removed</div>
-                                    <span class="tooltip-text">Number of duplicate rows deleted</span>
-                                </div>
-                                <div class="metric-card metric-success tooltip-container">
-                                    <div class="metric-value" id="metric-improvement">-</div>
-                                    <div class="metric-label">Missing Values Fixed</div>
-                                    <span class="tooltip-text">Missing values that were handled</span>
-                                </div>
-                            </div>
-                            
-                            <h4>Missing Values: Before vs After</h4>
-                            <div class="chart-container">
-                                <canvas id="missing-chart"></canvas>
-                            </div>
-                            
-                            <h4>Downloads</h4>
-                            <div class="download-buttons" id="download-buttons">
-                                <!-- Generated dynamically -->
-                            </div>
-                            
-                            <button class="btn btn-primary" id="process-another-btn">
-                                ➕ Process Another File
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Loading Spinner -->
-                    <div id="loading-spinner" class="loading-spinner" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>Processing your file... This may take a moment.</p>
-                        <div class="progress-container" style="width: 300px;">
-                            <div class="progress-bar" id="progress-bar"></div>
-                        </div>
-                        <div class="progress-label">
-                            <span id="progress-text">0%</span>
-                            <span id="progress-info"></span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Analytics Page -->
-            <section id="analytics-page" class="page">
-                <header class="page-header">
-                    <h2>📈 Advanced Analytics Dashboard</h2>
-                    <p>Comprehensive insights about your data cleaning process</p>
-                </header>
-                
-                <div class="container">
-                    <div id="analytics-empty" class="empty-state">
-                        <p>📊 Upload and process a file first to see analytics</p>
-                    </div>
-                    
-                    <div id="analytics-content" style="display: none;">
-                        <!-- Key Metrics Section -->
-                        <div class="metrics-grid">
-                            <div class="metric-card metric-info">
-                                <div class="metric-value" id="analytics-metric-original">-</div>
-                                <div class="metric-label">Original Rows</div>
-                            </div>
-                            <div class="metric-card metric-success">
-                                <div class="metric-value" id="analytics-metric-cleaned">-</div>
-                                <div class="metric-label">Cleaned Rows</div>
-                            </div>
-                            <div class="metric-card metric-warning">
-                                <div class="metric-value" id="analytics-metric-duplicates">-</div>
-                                <div class="metric-label">Duplicates Removed</div>
-                            </div>
-                            <div class="metric-card metric-success">
-                                <div class="metric-value" id="analytics-metric-fixed">-</div>
-                                <div class="metric-label">Issues Fixed</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Charts Grid -->
-                        <div class="grid-2">
-                            <div class="card">
-                                <h3>🎯 Data Quality Improvement</h3>
-                                <div class="chart-container">
-                                    <canvas id="improvement-chart"></canvas>
-                                </div>
-                            </div>
-                            <div class="card">
-                                <h3>📊 Row Statistics</h3>
-                                <div class="chart-container">
-                                    <canvas id="rows-chart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="card">
-                            <h3>🔍 Column-wise Missing Data Analysis</h3>
-                            <div class="chart-container large">
-                                <canvas id="column-chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- History Page -->
-            <section id="history-page" class="page">
-                <header class="page-header">
-                    <h2>📜 Processing History</h2>
-                    <p>Recent file processing runs</p>
-                </header>
-                
-                <div class="container">
-                    <div class="card">
-                        <button class="btn btn-secondary" id="refresh-history-btn">
-                            🔄 Refresh History
-                        </button>
-                        
-                        <div id="history-table-container">
-                            <table id="history-table" class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Filename</th>
-                                        <th>Run ID</th>
-                                        <th>Original Rows</th>
-                                        <th>Cleaned Rows</th>
-                                        <th>Duplicates</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="history-tbody">
-                                    <tr class="empty-row">
-                                        <td colspan="5">Loading...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Settings Page -->
-            <section id="settings-page" class="page">
-                <header class="page-header">
-                    <h2>⚙️ Settings & Configuration</h2>
-                    <p>Manage your CleanDataPro setup</p>
-                </header>
-                
-                <div class="container">
-                    <div class="card">
-                        <h3>Backend Configuration</h3>
-                        <p><strong>Backend URL:</strong> <code id="backend-url">http://localhost:8000</code></p>
-                        <button class="btn btn-secondary" id="test-connection-btn">
-                            🔗 Test Backend Connection
-                        </button>
-                        <div id="connection-result"></div>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>About CleanDataPro</h3>
-                        <ul>
-                            <li>📊 Missing value analysis</li>
-                            <li>🧹 Intelligent data cleaning</li>
-                            <li>📄 PDF report generation</li>
-                            <li>📜 Processing history tracking</li>
-                            <li>🔌 REST API integration</li>
-                        </ul>
-                        
-                        <h4>Tech Stack</h4>
-                        <ul>
-                            <li>Frontend: Flask + HTML/CSS/JS</li>
-                            <li>Backend: FastAPI</li>
-                            <li>Data Processing: Pandas</li>
-                            <li>Reporting: ReportLab</li>
-                            <li>Visualization: Chart.js</li>
-                        </ul>
-                        
-                        <p>
-                            <strong>Version:</strong> 1.0.0<br>
-                            <strong>Repository:</strong> 
-                            <a href="https://github.com/adriel03-dp/clean-datapro" target="_blank">
-                                GitHub - clean-datapro
-                            </a>
-                        </p>
-                    </div>
-                </div>
-            </section>
+            <div class="sidebar-bottom"><div class="status-card"><span class="status-dot" id="backend-status"></span><div><strong id="backend-text">Checking API</strong><small>Processing service</small></div></div><p class="version">v1.0.0 <span>·</span> secure workspace</p></div>
+        </aside>
+        <main class="main-content" id="main-content">
+            <section id="upload-page" class="page active" aria-labelledby="upload-title"><header class="topbar"><div><p class="eyebrow">WORKSPACE / UPLOAD</p><h1 id="upload-title">Make every row count.</h1><p class="lede">Drop in a CSV and get a transparent, analysis-ready dataset in seconds.</p></div><button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button></header><div class="container"><div class="hero-grid"><div class="upload-panel"><div class="section-kicker"><span class="step-number">01</span><span>Bring your data</span></div><div class="upload-area" id="upload-area" tabindex="0" role="button" aria-label="Upload a CSV file"><div class="upload-symbol" aria-hidden="true">↥</div><h2>Drop your CSV here</h2><p>or choose a file from your computer</p><button class="btn btn-primary" id="file-input-btn" type="button">Choose CSV file <span>→</span></button><small>CSV only · up to 100 MB</small><input type="file" id="file-input" accept=".csv,text/csv" hidden></div><div class="trust-row"><span>✓ No data leaves your workflow</span><span>✓ Clear before / after reports</span></div></div><div class="intro-panel"><div class="intro-orb orb-one"></div><div class="intro-orb orb-two"></div><p class="eyebrow">CLEAN DATA, CLEAR DECISIONS</p><h2>From messy file<br>to <em>momentum.</em></h2><p>Automated missing-value treatment, duplicate removal, type detection, and professional reports — with every change accounted for.</p><div class="mini-stat-row"><div><strong>01</strong><span>Upload</span></div><div><strong>02</strong><span>Clean</span></div><div><strong>03</strong><span>Share</span></div></div></div></div>
+            <div id="preview-section" class="preview-section" hidden><div class="section-heading"><div><p class="eyebrow">02 / INSPECT</p><h2>Review before you clean</h2></div><span class="pill">Preview · first 10 rows</span></div><div class="card"><div class="file-info"><div><span class="meta-label">FILE</span><strong id="preview-filename">—</strong></div><div><span class="meta-label">SIZE</span><strong id="preview-size">—</strong></div><div><span class="meta-label">SHAPE</span><strong id="preview-shape">—</strong></div></div><div class="missing-summary"><div class="subheading"><div><span class="eyebrow">QUALITY CHECK</span><h3>Missing values by column</h3></div><span class="muted">Sorted by impact</span></div><div class="table-wrapper"><table id="missing-table" class="data-table"><thead><tr><th scope="col">Column</th><th scope="col">Missing count</th><th scope="col">Missing %</th></tr></thead><tbody></tbody></table></div></div><div class="subheading"><div><span class="eyebrow">DATA PREVIEW</span><h3>What we found</h3></div></div><div class="table-wrapper"><table id="preview-table" class="data-table"><thead></thead><tbody></tbody></table></div><div class="action-buttons"><button class="btn btn-primary" id="process-btn" type="button">Clean this file <span>→</span></button><button class="btn btn-quiet" id="upload-again-btn" type="button">Choose another file</button></div></div></div>
+            <div id="results-section" class="results-section" hidden><div class="section-heading"><div><p class="eyebrow">03 / COMPLETE</p><h2>Your data is ready.</h2><p class="lede">The cleanup is finished. Download the outputs or explore the impact below.</p></div><span class="success-pill">● Clean run complete</span></div><div class="metrics-grid"><div class="metric-card"><span class="meta-label">ORIGINAL ROWS</span><strong id="metric-original">—</strong><small>Before cleaning</small></div><div class="metric-card metric-highlight"><span class="meta-label">CLEANED ROWS</span><strong id="metric-cleaned">—</strong><small>Ready to analyze</small></div><div class="metric-card"><span class="meta-label">DUPLICATES REMOVED</span><strong id="metric-duplicates">—</strong><small>Exact matches</small></div><div class="metric-card"><span class="meta-label">MISSING VALUES FIXED</span><strong id="metric-improvement">—</strong><small>Issues handled</small></div></div><div class="card result-card"><div class="subheading"><div><span class="eyebrow">QUALITY SIGNAL</span><h3>Missing values · before vs after</h3></div></div><div class="chart-container"><canvas id="missing-chart" aria-label="Missing values before and after cleaning"></canvas></div><div class="subheading download-heading"><div><span class="eyebrow">EXPORTS</span><h3>Take your clean data with you</h3></div></div><div class="download-buttons" id="download-buttons"></div><button class="btn btn-quiet" id="process-another-btn" type="button">Process another file</button></div></div>
+            <div id="loading-spinner" class="loading-spinner" hidden role="status" aria-live="polite"><div class="loading-mark">✦</div><h2>Cleaning your data</h2><p id="progress-info">Checking columns, duplicates, and missing values…</p><div class="progress-container"><div class="progress-bar" id="progress-bar"></div></div><div class="progress-label"><span id="progress-text">0%</span><span>Almost there</span></div></div></div></section>
+            <section id="analytics-page" class="page" aria-labelledby="analytics-title"><header class="topbar"><div><p class="eyebrow">WORKSPACE / ANALYTICS</p><h1 id="analytics-title">See the difference.</h1><p class="lede">A visual readout of the quality improvements in your last run.</p></div></header><div class="container"><div id="analytics-empty" class="empty-state"><div class="empty-icon">◒</div><h2>Your analytics will appear here</h2><p>Upload and clean a CSV to see quality signals, row changes, and column-level detail.</p><button class="btn btn-primary" data-page="upload" type="button">Upload a file <span>→</span></button></div><div id="analytics-content" hidden><div class="metrics-grid"><div class="metric-card"><span class="meta-label">ORIGINAL ROWS</span><strong id="analytics-metric-original">—</strong></div><div class="metric-card metric-highlight"><span class="meta-label">CLEANED ROWS</span><strong id="analytics-metric-cleaned">—</strong></div><div class="metric-card"><span class="meta-label">DUPLICATES</span><strong id="analytics-metric-duplicates">—</strong></div><div class="metric-card"><span class="meta-label">ISSUES FIXED</span><strong id="analytics-metric-fixed">—</strong></div></div><div class="grid-2"><div class="card"><div class="subheading"><div><span class="eyebrow">QUALITY</span><h3>Improvement overview</h3></div></div><div class="chart-container"><canvas id="improvement-chart"></canvas></div></div><div class="card"><div class="subheading"><div><span class="eyebrow">ROWS</span><h3>Row statistics</h3></div></div><div class="chart-container"><canvas id="rows-chart"></canvas></div></div></div><div class="card"><div class="subheading"><div><span class="eyebrow">COLUMNS</span><h3>Missing data analysis</h3></div></div><div class="chart-container large"><canvas id="column-chart"></canvas></div></div></div></div></section>
+            <section id="history-page" class="page" aria-labelledby="history-title"><header class="topbar"><div><p class="eyebrow">WORKSPACE / HISTORY</p><h1 id="history-title">Your cleaning trail.</h1><p class="lede">A lightweight record of recent processing runs.</p></div><button class="btn btn-quiet" id="refresh-history-btn" type="button">↻ Refresh</button></header><div class="container"><div class="card"><div class="table-wrapper"><table id="history-table" class="data-table"><thead><tr><th scope="col">Filename</th><th scope="col">Run ID</th><th scope="col">Original rows</th><th scope="col">Cleaned rows</th><th scope="col">Duplicates</th></tr></thead><tbody id="history-tbody"><tr class="empty-row"><td colspan="5">Loading history…</td></tr></tbody></table></div></div></div></section>
+            <section id="settings-page" class="page" aria-labelledby="settings-title"><header class="topbar"><div><p class="eyebrow">WORKSPACE / SETTINGS</p><h1 id="settings-title">Keep it simple.</h1><p class="lede">System information and connection details for this workspace.</p></div></header><div class="container settings-grid"><div class="card"><span class="eyebrow">SYSTEM CONNECTION</span><h2>Backend status</h2><p class="setting-line"><span>API endpoint</span><code id="backend-url">{{ backend_url }}</code></p><button class="btn btn-primary" id="test-connection-btn" type="button">Test connection <span>→</span></button><div id="connection-result" class="connection-result" aria-live="polite"></div></div><div class="card"><span class="eyebrow">ABOUT THE WORKSPACE</span><h2>What CleanData Pro handles</h2><ul class="feature-list"><li>Missing-value analysis &amp; treatment</li><li>Duplicate detection and removal</li><li>Type consistency checks</li><li>CSV, PDF, and JSON exports</li></ul></div></div></section>
         </main>
     </div>
-    
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" id="theme-toggle" title="Toggle Dark Mode">🌙</button>
-    
-    <!-- Modal Templates -->
-    <div id="confirm-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">Confirm Action</h2>
-                <button class="modal-close" onclick="closeModal('confirm-modal')">&times;</button>
-            </div>
-            <p id="modal-message"></p>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('confirm-modal')">Cancel</button>
-                <button class="btn btn-primary" id="modal-confirm-btn">Confirm</button>
-            </div>
-        </div>
-    </div>
-    
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <div id="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <div id="confirm-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-content"><div class="modal-header"><h2 id="modal-title">Confirm action</h2><button class="modal-close" onclick="closeModal('confirm-modal')" aria-label="Close" type="button">×</button></div><p id="modal-message"></p><div class="modal-footer"><button class="btn btn-quiet" onclick="closeModal('confirm-modal')" type="button">Cancel</button><button class="btn btn-primary" id="modal-confirm-btn" type="button">Confirm</button></div></div></div>
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </body>
 </html>
