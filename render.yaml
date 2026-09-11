@@ -4,6 +4,8 @@ services:
     runtime: python
     plan: free
     region: singapore
+    branch: main
+    autoDeployTrigger: commit
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn src.main:app --host 0.0.0.0 --port $PORT
@@ -25,6 +27,8 @@ services:
     runtime: python
     plan: free
     region: singapore
+    branch: main
+    autoDeployTrigger: commit
     rootDir: frontend
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 300 web_app:app
