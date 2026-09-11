@@ -100,7 +100,7 @@ def test_mongo_connection(timeout: int = 5) -> bool:
         if client is None:
             return False
         # server selection / ping
-        client.admin.command({"ping": 1}, serverSelectionTimeoutMS=timeout*1000)
+        client.admin.command("ping")
         return True
     except Exception as e:
         # Log the actual error for debugging

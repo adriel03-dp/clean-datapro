@@ -74,7 +74,7 @@ function closeModal(modalId) {
 function updateProgress(percent, label = '') {
     const bar = document.getElementById('progress-bar');
     const text = document.getElementById('progress-text');
-    const info = document.getElementById('progress-info');
+    const info = document.getElementById('processing-stage');
     
     if (bar) {
         bar.style.width = percent + '%';
@@ -392,7 +392,98 @@ function displayDataPreview(data) {
     });
 }
 
-// Process file
+const terminalEntries = new Set();
+
+function resetProcessingConsole() {
+    terminalEntries.clear();
+    const log = document.getElementById('terminal-log');
+    const errorPanel = document.getElementById('processing-error');
+    if (log) log.innerHTML = '';
+    if (errorPanel) errorPanel.hidden = true;
+    document.getElementById('terminal-job-id').textContent = 'JOB —';
+    updateProgress(0, 'Starting run');
+}
+
+function appendTerminalLog(entry) {
+    const key = `${entry.time || ''}:${entry.message || ''}`;
+    if (terminalEntries.has(key)) return;
+    terminalEntries.add(key);
+
+    const list = document.getElementById('terminal-log');
+    const row = document.createElement('li');
+    if (entry.level === 'error') row.classList.add('is-error');
+    const timestamp = document.createElement('time');
+    const parsed = entry.time ? new Date(entry.time) : null;
+    timestamp.textContent = parsed && !Number.isNaN(parsed.getTime())
+        ? parsed.toLocaleTimeString([], { hour12: false })
+        : '--:--:--';
+    const prompt = document.createElement('span');
+    prompt.className = 'terminal-prompt';
+    prompt.setAttribute('aria-hidden', 'true');
+    prompt.textContent = entry.level === 'error' ? '!' : '›';
+    const message = document.createElement('span');
+    message.textContent = entry.message || 'Working…';
+    row.append(timestamp, prompt, message);
+    list.appendChild(row);
+    list.scrollTop = list.scrollHeight;
+}
+
+function renderProcessingJob(job) {
+    document.getElementById('terminal-job-id').textContent = `JOB ${String(job.job_id || '').slice(0, 8).toUpperCase()}`;
+    updateProgress(Number(job.progress || 0), job.stage || 'Processing');
+    (job.logs || []).forEach(appendTerminalLog);
+}
+
+function processingMessage(error, fallback) {
+    const message = error?.response?.data?.error;
+    return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
+function showProcessingFailure(message) {
+    const panel = document.getElementById('processing-error');
+    document.getElementById('processing-error-message').textContent = message;
+    panel.hidden = false;
+    panel.focus();
+}
+
+const wait = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+async function waitForProcessingJob(jobId) {
+    let connectionFailures = 0;
+    while (true) {
+        try {
+            const response = await axios.get(`${API_BASE}/process/status/${encodeURIComponent(jobId)}`, { timeout: 35000 });
+            const job = response.data;
+            connectionFailures = 0;
+            renderProcessingJob(job);
+            if (job.status === 'complete') return job.result;
+            if (job.status === 'failed') {
+                const failure = new Error(job.error?.message || 'The cleaning run stopped. Please retry.');
+                failure.isJobFailure = true;
+                throw failure;
+            }
+        } catch (error) {
+            if (error.isJobFailure) {
+                throw error;
+            } else if (!error.response && connectionFailures < 4) {
+                connectionFailures += 1;
+                appendTerminalLog({
+                    time: new Date().toISOString(),
+                    message: `Status connection interrupted. Reconnecting (${connectionFailures}/4)…`,
+                    level: 'info'
+                });
+            } else {
+                const jobMessage = !error.response && error.message && !error.message.includes('Network Error')
+                    ? error.message
+                    : processingMessage(error, 'We lost contact with the cleaning service. Please retry this run.');
+                throw new Error(jobMessage);
+            }
+        }
+        await wait(1200);
+    }
+}
+
+// Process file as a background job so large datasets never hold one request open.
 async function processFile() {
     if (!currentFile) {
         showError('No file selected');
@@ -401,49 +492,36 @@ async function processFile() {
     
     const formData = new FormData();
     formData.append('file', currentFile);
-    let progressInterval = null;
-
     try {
         const previewSection = document.getElementById('preview-section');
         const loadingSpinner = document.getElementById('loading-spinner');
-        
+
+        resetProcessingConsole();
         previewSection.hidden = true;
         loadingSpinner.hidden = false;
-        
-        // Simulate progress
-        updateProgress(0, 'Initializing...');
-        let progress = 0;
-        progressInterval = setInterval(() => {
-            progress += Math.random() * 15;
-            if (progress < 90) {
-                updateProgress(progress, 'Processing your data...');
-            }
-        }, 200);
-        
-        const response = await axios.post(`${API_BASE}/process`, formData, {
+
+        appendTerminalLog({ time: new Date().toISOString(), message: 'Transferring dataset to the secure processing queue.' });
+        const response = await axios.post(`${API_BASE}/process/start`, formData, {
             headers: { 'Content-Type': 'multipart/form-data', ...csrfHeaders() },
-            timeout: 300000
+            timeout: 120000
         });
-        
-        clearInterval(progressInterval);
-        progressInterval = null;
-        updateProgress(100, 'Complete!');
-        
-        lastResult = response.data.data;
-        
-        // Show completion toast
-        setTimeout(() => {
-            displayResults(lastResult);
-            loadingSpinner.hidden = true;
-            showToast('File processed successfully.', 'success', 3000);
-        }, 300);
-    } catch (error) {
-        if (progressInterval) clearInterval(progressInterval);
-        showError(`Error processing file: ${error.response?.data?.error || error.message}`);
-        const loadingSpinner = document.getElementById('loading-spinner');
+        renderProcessingJob(response.data);
+        lastResult = await waitForProcessingJob(response.data.job_id);
+        await wait(350);
         loadingSpinner.hidden = true;
-        const previewSection = document.getElementById('preview-section');
-        previewSection.hidden = false;
+        displayResults(lastResult);
+        document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast('Cleaning complete. Your exports are ready.', 'success', 3500);
+    } catch (error) {
+        const message = processingMessage(
+            error,
+            error.message && !error.message.includes('status code')
+                ? error.message
+                : 'The cleaning run could not be completed. Please retry.'
+        );
+        appendTerminalLog({ time: new Date().toISOString(), message, level: 'error' });
+        showProcessingFailure(message);
+        document.getElementById('retry-process-btn').onclick = processFile;
     }
 }
 
@@ -613,7 +691,9 @@ function resetUpload() {
     document.getElementById('upload-area').hidden = false;
     document.getElementById('preview-section').hidden = true;
     document.getElementById('results-section').hidden = true;
+    document.getElementById('loading-spinner').hidden = true;
     currentFile = null;
+    resetProcessingConsole();
     updateProgress(0);
 }
 
@@ -956,75 +1036,25 @@ function showToast(message, type = 'info', duration = 4000) {
 // Show loading overlay
 function showLoadingOverlay(show) {
     let overlay = document.getElementById('loading-overlay');
-    
+
     if (show) {
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = 'loading-overlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                backdrop-filter: blur(4px);
-            `;
             overlay.innerHTML = `
-                <div style="
-                    background: white;
-                    padding: 40px;
-                    border-radius: 16px;
-                    text-align: center;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                ">
-                    <div style="
-                        border: 4px solid #f0f0f0;
-                        border-top: 4px solid #667eea;
-                        border-radius: 50%;
-                        width: 50px;
-                        height: 50px;
-                        animation: spin 1s linear infinite;
-                        margin: 0 auto 20px;
-                    "></div>
-                    <p style="color: #333; font-weight: 600; margin-bottom: 8px;">Processing</p>
-                    <p style="color: #999; font-size: 13px;">Please wait...</p>
+                <div class="inspect-loader" role="status" aria-live="polite">
+                    <span class="inspect-scan" aria-hidden="true"></span>
+                    <div>
+                        <strong>Inspecting CSV</strong>
+                        <span>Reading the schema and calculating data quality signals.</span>
+                    </div>
                 </div>
             `;
             document.body.appendChild(overlay);
-            
-            // Inject animation styles if not already done
-            if (!document.getElementById('app-animations')) {
-                const style = document.createElement('style');
-                style.id = 'app-animations';
-                style.textContent = `
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                    @keyframes slideInRight {
-                        from { transform: translateX(400px); opacity: 0; }
-                        to { transform: translateX(0); opacity: 1; }
-                    }
-                    @keyframes slideOutRight {
-                        from { transform: translateX(0); opacity: 1; }
-                        to { transform: translateX(400px); opacity: 0; }
-                    }
-                    @keyframes slideUp {
-                        from { opacity: 0; transform: translateY(20px); }
-                        to { opacity: 1; transform: translateY(0); }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
         }
-        overlay.style.display = 'flex';
+        overlay.hidden = false;
     } else {
-        if (overlay) overlay.style.display = 'none';
+        if (overlay) overlay.hidden = true;
     }
 }
 

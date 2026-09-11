@@ -58,7 +58,7 @@ def download(
         raise HTTPException(status_code=503, detail="File ownership storage is unavailable")
     try:
         client = get_mongo_client()
-        if not client:
+        if client is None:
             raise RuntimeError("MongoDB client unavailable")
         try:
             db = client.get_default_database()

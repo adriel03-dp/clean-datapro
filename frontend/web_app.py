@@ -24,11 +24,22 @@ PLACEHOLDER_VALUES = {
 }
 
 
-def _is_missing_preview(value):
-    missing = pd.isna(value)
-    if not hasattr(missing, "__len__") and bool(missing):
-        return True
-    return isinstance(value, str) and value.strip().lower() in PLACEHOLDER_VALUES
+def _preview_missing_summary(df):
+    """Calculate preview quality counts with vectorized pandas operations."""
+    summary = {}
+    row_count = len(df)
+    for column in df.columns:
+        series = df[column]
+        mask = series.isna()
+        if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+            normalized = series.astype("string").str.strip().str.lower()
+            mask = mask | normalized.isin(PLACEHOLDER_VALUES)
+        count = int(mask.sum())
+        summary[column] = {
+            "count": count,
+            "pct": round((count / row_count) * 100, 2) if row_count else 0,
+        }
+    return summary
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or os.environ.get("SECRET_KEY")
@@ -164,12 +175,7 @@ def upload_file():
         filename = secure_filename(file.filename)
         if not filename:
             return jsonify({"error": "Please choose a valid filename."}), 400
-        df = pd.read_csv(file, keep_default_na=False)
-        
-        # Store in session for later processing
-        session["current_file"] = filename
-        session["file_shape"] = df.shape
-        session.modified = True
+        df = pd.read_csv(file, keep_default_na=False, low_memory=False)
         
         return jsonify({
             "success": True,
@@ -178,24 +184,33 @@ def upload_file():
             "columns": df.columns.tolist(),
             "dtypes": df.dtypes.astype(str).to_dict(),
             "preview": df.head(10).to_dict(orient="records"),
-            "missing_summary": {
-                col: {
-                    "count": int(df[col].map(_is_missing_preview).sum()),
-                    "pct": round((df[col].map(_is_missing_preview).sum() / len(df)) * 100, 2) if len(df) else 0
-                }
-                for col in df.columns
-            }
+            "missing_summary": _preview_missing_summary(df),
         })
     
     except (pd.errors.EmptyDataError, pd.errors.ParserError, UnicodeDecodeError):
         return jsonify({"error": "The uploaded file is not a readable CSV."}), 400
     except Exception:
+        app.logger.exception("Unable to build CSV preview")
         return jsonify({"error": "Unable to preview this CSV."}), 500
 
 
-@app.route("/api/process", methods=["POST"])
-def process():
-    """Process file with backend"""
+def _public_processing_error(response, fallback):
+    """Return a production-safe message without exposing backend internals."""
+    if response.status_code in (400, 413):
+        try:
+            detail = response.json().get("detail")
+            if isinstance(detail, str) and detail:
+                return detail
+        except ValueError:
+            pass
+    if response.status_code in (401, 403):
+        return "Your session has expired. Sign in again and retry."
+    return fallback
+
+
+@app.post("/api/process/start")
+def start_process():
+    """Stage a file with the backend and return its background job."""
     denied = _require_session()
     if denied:
         return denied
@@ -215,32 +230,55 @@ def process():
         payload = file.stream.read()
         files = {"file": (file.filename, payload, "text/csv")}
         resp = requests.post(
-            f"{BACKEND_BASE}/api/process", files=files, headers=_auth_headers(), timeout=300
+            f"{BACKEND_BASE}/api/process/start",
+            files=files,
+            headers=_auth_headers(),
+            timeout=(15, 120),
         )
-        
-        if resp.status_code != 200:
-            try:
-                detail = resp.json().get("detail", "Backend could not process this file.")
-            except ValueError:
-                detail = "Backend could not process this file."
-            return jsonify({"error": detail}), resp.status_code
-        
-        result = resp.json()
-        
-        return jsonify({
-            "success": True,
-            "data": result
-        })
-    
+        if resp.status_code != 202:
+            message = _public_processing_error(
+                resp, "The processing service could not start this run. Please retry."
+            )
+            app.logger.warning("Processing start failed with status %s", resp.status_code)
+            return jsonify({"error": message}), resp.status_code
+        return jsonify(resp.json()), 202
     except requests.exceptions.Timeout:
-        return jsonify({"error": "Processing timed out. Try a smaller CSV."}), 504
+        return jsonify({"error": "The upload took too long. Check your connection and retry."}), 504
     except requests.exceptions.RequestException:
-        return jsonify({"error": "Cannot connect to the processing service."}), 503
+        app.logger.exception("Unable to reach processing service")
+        return jsonify({"error": "The processing service is temporarily unavailable."}), 503
     except ValueError:
-        return jsonify({"error": "The backend returned an invalid response."}), 502
+        app.logger.exception("Processing service returned malformed JSON")
+        return jsonify({"error": "The processing service returned an invalid response."}), 502
     except Exception:
-        app.logger.exception("Unexpected error while proxying CSV processing")
-        return jsonify({"error": "Unable to process this file."}), 500
+        app.logger.exception("Unexpected error while starting CSV processing")
+        return jsonify({"error": "The cleaning run could not be started. Please retry."}), 500
+
+
+@app.get("/api/process/status/<job_id>")
+def process_status(job_id):
+    """Proxy authenticated job status without exposing server exceptions."""
+    denied = _require_session()
+    if denied:
+        return denied
+    try:
+        resp = requests.get(
+            f"{BACKEND_BASE}/api/process/jobs/{job_id}",
+            headers=_auth_headers(),
+            timeout=(10, 30),
+        )
+        if resp.status_code != 200:
+            message = _public_processing_error(
+                resp, "The cleaning status is temporarily unavailable. Please retry."
+            )
+            return jsonify({"error": message}), resp.status_code
+        return jsonify(resp.json())
+    except requests.exceptions.RequestException:
+        app.logger.exception("Unable to poll processing job %s", job_id)
+        return jsonify({"error": "The cleaning status is temporarily unavailable."}), 503
+    except ValueError:
+        app.logger.exception("Malformed processing status for job %s", job_id)
+        return jsonify({"error": "The processing service returned an invalid response."}), 502
 
 
 @app.route("/api/history", methods=["GET"])
@@ -270,18 +308,17 @@ def test_backend():
         resp = requests.get(f"{BACKEND_BASE}/healthz", timeout=5)
         if resp.status_code == 200:
             return jsonify({"success": True, "message": "Backend is online"})
-        else:
-            return jsonify({
-                "success": False,
-                "message": f"Backend returned status {resp.status_code}"
-            }), 500
-    except requests.exceptions.ConnectionError:
+        app.logger.warning("Backend health check returned %s", resp.status_code)
         return jsonify({
             "success": False,
-            "message": "Cannot connect to backend"
-        }), 500
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+            "message": "The processing service is temporarily unavailable."
+        }), 503
+    except requests.exceptions.RequestException:
+        app.logger.exception("Backend health check failed")
+        return jsonify({
+            "success": False,
+            "message": "The processing service is temporarily unavailable."
+        }), 503
 
 
 @app.route("/download/<kind>/<filename>", methods=["GET"])

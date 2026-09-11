@@ -1,5 +1,5 @@
 import pandas as pd
-from src.cleaner import analyze_missing_summary, clean_dataframe
+from src.cleaner import analyze_missing_summary, clean_csv, clean_dataframe
 
 
 def test_analyze_missing_summary_basic():
@@ -76,3 +76,19 @@ def test_clean_dataframe_preserves_dates_and_fills_all_placeholders():
     assert str(cleaned["date"].dtype).startswith("datetime")
     assert cleaned.isna().sum().sum() == 0
     assert summary["missing_after_total"] == 0
+
+
+def test_clean_csv_writes_output_and_reports_real_progress(tmp_path):
+    source = tmp_path / "source.csv"
+    output = tmp_path / "cleaned.csv"
+    source.write_text("name,score\nAlice,10\nUNKNOWN,20\nAlice,10\n", encoding="utf-8")
+    events = []
+
+    summary = clean_csv(source, output, progress_callback=lambda value, text: events.append((value, text)))
+    cleaned = pd.read_csv(output)
+
+    assert output.exists()
+    assert summary["missing_after_total"] == 0
+    assert cleaned["name"].isna().sum() == 0
+    assert [value for value, _ in events] == [5, 18, 28, 78, 88, 100]
+    assert events[-1][1] == "Cleaned CSV written successfully."

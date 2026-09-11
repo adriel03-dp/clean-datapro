@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 from pathlib import Path
 import warnings
 import pandas as pd
@@ -278,7 +278,9 @@ def clean_dataframe(
     dropped_dupes = 0
     if drop_duplicates:
         before = len(working)
-        working = working.drop_duplicates()
+        # Materialize the deduplicated frame before column repair so pandas
+        # never treats subsequent assignments as writes through a view.
+        working = working.drop_duplicates().copy()
         dropped_dupes = before - len(working)
 
     # Attempt to coerce numeric columns where possible
@@ -322,7 +324,10 @@ def clean_dataframe(
 
 
 def clean_csv(
-    input_path: str, output_path: str, drop_duplicates: bool = True
+    input_path: str,
+    output_path: str,
+    drop_duplicates: bool = True,
+    progress_callback: Callable[[int, str], None] | None = None,
 ) -> Dict[str, Any]:
     """
     Read CSV from `input_path`, clean it, write cleaned CSV to `output_path`,
@@ -337,17 +342,27 @@ def clean_csv(
     if not p_in.exists():
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
+    def emit(progress: int, message: str) -> None:
+        if progress_callback is not None:
+            progress_callback(progress, message)
+
+    emit(5, "Reading the full CSV into the cleaning workspace.")
     df = pd.read_csv(p_in, keep_default_na=False, low_memory=False)
+    emit(18, f"Loaded {len(df):,} rows across {len(df.columns):,} columns.")
+    emit(28, "Detecting data types, placeholders, and duplicate rows.")
     cleaned_df, inner_summary = clean_dataframe(df, drop_duplicates=drop_duplicates)
+    emit(78, "Missing values and type inconsistencies repaired.")
 
     # ensure output dir exists
     p_out.parent.mkdir(parents=True, exist_ok=True)
+    emit(88, "Writing the cleaned dataset.")
     cleaned_df.to_csv(p_out, index=False)
+    emit(100, "Cleaned CSV written successfully.")
 
     total_cells = df.size
-    missing_cells = int(
-        sum(_is_missing_value(value) for column in df.columns for value in df[column])
-    )
+    # Keep this calculation vectorized. A Python-level walk across every cell
+    # becomes a major second pass for the large datasets this service handles.
+    missing_cells = int(sum(_missing_mask(df[column]).sum() for column in df.columns))
     missing_pct = round((missing_cells / total_cells) * 100, 2) if total_cells else 0.0
 
     numeric_cols = int(

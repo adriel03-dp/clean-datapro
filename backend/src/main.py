@@ -73,7 +73,7 @@ def shutdown_event():
     """Cleanly close any cached MongoDB client on shutdown."""
     try:
         client = cfg.get_mongo_client()
-        if client:
+        if client is not None:
             client.close()
             logger.info("Closed MongoDB client on shutdown")
     except Exception as e:

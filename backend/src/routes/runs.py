@@ -18,7 +18,7 @@ def list_runs(current_user: dict = Depends(get_current_user), limit: int = Query
 
     try:
         client = get_mongo_client()
-        if not client:
+        if client is None:
             raise RuntimeError("MongoDB client unavailable")
         try:
             db = client.get_default_database()
