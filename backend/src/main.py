@@ -82,7 +82,11 @@ def shutdown_event():
 
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "processing_mode": "background-jobs",
+        "revision": os.getenv("RENDER_GIT_COMMIT", "local")[:7],
+    }
 
 
 if __name__ == "__main__":
