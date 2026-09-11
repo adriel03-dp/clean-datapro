@@ -11,6 +11,19 @@
     height: 31px;
 }
 
+/* Keep dark-mode table hover states dark enough for the light table text. */
+body.dark-mode .data-table tbody tr:hover {
+    background: #2b3850;
+}
+
+body.dark-mode .data-table tbody tr:hover td {
+    color: #f4f6fb;
+}
+
+.data-table tbody tr {
+    transition: background-color 160ms ease;
+}
+
 @media (max-width: 680px) {
     .brand-mark.logo .brand-logo {
         width: 31px;

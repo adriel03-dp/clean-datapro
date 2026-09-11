@@ -208,9 +208,14 @@ def process():
     
     try:
         # Call backend API
-        files = {"file": (file.filename, file.getvalue(), "text/csv")}
+        # Large uploads are spooled to a temporary file by Werkzeug; that
+        # stream does not reliably expose BytesIO.getvalue(). Read from the
+        # stream explicitly so both small and large CSVs work.
+        file.stream.seek(0)
+        payload = file.stream.read()
+        files = {"file": (file.filename, payload, "text/csv")}
         resp = requests.post(
-            f"{BACKEND_BASE}/api/process", files=files, headers=_auth_headers(), timeout=120
+            f"{BACKEND_BASE}/api/process", files=files, headers=_auth_headers(), timeout=300
         )
         
         if resp.status_code != 200:
@@ -221,10 +226,6 @@ def process():
             return jsonify({"error": detail}), resp.status_code
         
         result = resp.json()
-        
-        # Store result for downloads
-        session["last_result"] = result
-        session.modified = True
         
         return jsonify({
             "success": True,

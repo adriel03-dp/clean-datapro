@@ -422,7 +422,7 @@ async function processFile() {
         
         const response = await axios.post(`${API_BASE}/process`, formData, {
             headers: { 'Content-Type': 'multipart/form-data', ...csrfHeaders() },
-            timeout: 120000
+            timeout: 300000
         });
         
         clearInterval(progressInterval);
