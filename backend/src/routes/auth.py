@@ -1,24 +1,31 @@
-"""Authentication routes"""
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, EmailStr
-from ..auth import register_user, login_user, verify_token, get_user
+"""Authentication routes."""
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, EmailStr, Field
+from ..auth import (
+    get_current_user,
+    get_user,
+    login_user,
+    normalize_email,
+    register_user,
+    verify_token,
+)
 
 router = APIRouter()
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
-    name: str = ""
+    password: str = Field(min_length=8, max_length=72)
+    name: str = Field(default="", max_length=120)
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=72)
 
 
 class TokenVerifyRequest(BaseModel):
-    token: str
+    token: str = Field(min_length=1, max_length=4096)
 
 
 @router.post("/auth/register")
@@ -27,7 +34,8 @@ def register(req: RegisterRequest):
     result = register_user(req.email, req.password, req.name)
     
     if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["message"])
+        status = 503 if result["message"] == "Authentication service unavailable" else 400
+        raise HTTPException(status_code=status, detail=result["message"])
     
     return result
 
@@ -38,7 +46,8 @@ def login(req: LoginRequest):
     result = login_user(req.email, req.password)
     
     if not result["success"]:
-        raise HTTPException(status_code=401, detail=result["message"])
+        status = 503 if result["message"] == "Authentication service unavailable" else 401
+        raise HTTPException(status_code=status, detail=result["message"])
     
     return result
 
@@ -59,11 +68,8 @@ def verify(req: TokenVerifyRequest):
 
 
 @router.get("/auth/user/{email}")
-def get_user_info(email: str):
-    """Get user information"""
-    user = get_user(email)
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return user
+def get_user_info(email: str, current_user: dict = Depends(get_current_user)):
+    """Get only the authenticated user's own profile."""
+    if normalize_email(email) != current_user["email"]:
+        raise HTTPException(status_code=403, detail="Cannot access another user")
+    return current_user

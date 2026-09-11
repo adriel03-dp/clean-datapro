@@ -45,4 +45,6 @@ The backend reads environment variables from a `.env` file in the `backend/` fol
 MONGODB_URI=
 ```
 
-If you plan to use MongoDB features, set `MONGODB_URI` to your connection string (for MongoDB Atlas or local instance). The project uses `python-dotenv` to load the file.
+Set `MONGODB_URI` to a reachable MongoDB connection string (MongoDB Atlas or a
+local instance). It is required for registration, login, per-user history, and
+artifact ownership checks. The project uses `python-dotenv` to load the file.

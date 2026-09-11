@@ -4,9 +4,19 @@ const API_BASE = '/api';
 let currentFile = null;
 let lastResult = null;
 let charts = {};
+let appInitialized = false;
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+}
+
+function csrfHeaders() {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    return token ? { 'X-CSRFToken': token } : {};
+}
+
+function requestConfig(config = {}) {
+    return { ...config, headers: { ...(config.headers || {}), ...csrfHeaders() } };
 }
 
 // ========== THEME MANAGEMENT ==========
@@ -22,7 +32,7 @@ function toggleTheme() {
     const isDarkMode = document.body.classList.toggle('dark-mode');
     localStorage.setItem('cleandatapro-dark-mode', isDarkMode);
     updateThemeToggleIcon(isDarkMode);
-    showToast(isDarkMode ? '🌙 Dark mode enabled' : '☀️ Light mode enabled', 'info', 2000);
+    showToast(isDarkMode ? 'Dark mode enabled' : 'Light mode enabled', 'info', 2000);
 }
 
 function updateThemeToggleIcon(isDarkMode) {
@@ -46,12 +56,13 @@ function showModal(title, message, onConfirm) {
     
     modal.classList.add('show');
     
-    // Close on background click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeModal('confirm-modal');
-        }
-    });
+    // Bind once; showModal can be called many times during a session.
+    if (!modal.dataset.bound) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal('confirm-modal');
+        });
+        modal.dataset.bound = 'true';
+    }
 }
 
 function closeModal(modalId) {
@@ -95,10 +106,13 @@ function createSkeletonLoader(count = 3) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
-    initializeApp();
-    setupEventListeners();
-    checkBackendStatus();
     setupThemeToggle();
+    setupAuth();
+    if (document.body.dataset.authenticated === 'true') {
+        initializeApp();
+        setupEventListeners();
+        checkBackendStatus();
+    }
 });
 
 // Setup theme toggle
@@ -109,9 +123,99 @@ function setupThemeToggle() {
     }
 }
 
+function setupAuth() {
+    const loginTab = document.getElementById('login-tab');
+    const signupTab = document.getElementById('signup-tab');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    if (!loginTab || !signupTab || !loginForm || !signupForm) return;
+
+    const setMode = (mode) => {
+        const login = mode === 'login';
+        loginTab.classList.toggle('active', login);
+        signupTab.classList.toggle('active', !login);
+        loginTab.setAttribute('aria-selected', String(login));
+        signupTab.setAttribute('aria-selected', String(!login));
+        loginForm.hidden = !login;
+        signupForm.hidden = login;
+        document.getElementById(login ? 'login-email' : 'signup-name').focus();
+    };
+    loginTab.addEventListener('click', () => setMode('login'));
+    signupTab.addEventListener('click', () => setMode('signup'));
+    loginForm.addEventListener('submit', (event) => submitAuth(event, '/api/auth/login', loginForm, 'login-error'));
+    signupForm.addEventListener('submit', (event) => submitAuth(event, '/api/auth/register', signupForm, 'signup-error'));
+    const logoutButton = document.getElementById('logout-btn');
+    if (logoutButton) logoutButton.addEventListener('click', logout);
+}
+
+async function submitAuth(event, endpoint, form, errorId) {
+    event.preventDefault();
+    const error = document.getElementById(errorId);
+    const button = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    const required = [...form.querySelectorAll('[required]')];
+    const missing = required.find((input) => !input.value.trim());
+    if (missing) {
+        error.textContent = `${missing.labels?.[0]?.textContent || 'This field'} is required.`;
+        error.hidden = false;
+        missing.focus();
+        return;
+    }
+    const emailInput = form.querySelector('input[type="email"]');
+    if (!emailInput.checkValidity()) {
+        error.textContent = 'Enter a valid email address.';
+        error.hidden = false;
+        emailInput.focus();
+        return;
+    }
+    if (endpoint.endsWith('/register') && payload.password.length < 8) {
+        error.textContent = 'Use a password with at least 8 characters.';
+        error.hidden = false;
+        return;
+    }
+    if (endpoint.endsWith('/register') && payload.password !== payload.confirm) {
+        error.textContent = 'Passwords do not match.';
+        error.hidden = false;
+        return;
+    }
+    delete payload.confirm;
+    error.hidden = true;
+    button.disabled = true;
+    button.dataset.label = button.textContent;
+    button.textContent = 'Connecting…';
+    try {
+        const response = await axios.post(endpoint, payload, requestConfig());
+        const user = response.data;
+        document.body.dataset.authenticated = 'true';
+        document.getElementById('auth-screen').hidden = true;
+        document.querySelector('.app-shell').hidden = false;
+        document.getElementById('user-name').textContent = user.name || user.email;
+        document.getElementById('user-email').textContent = user.email || '';
+        document.getElementById('user-avatar').textContent = (user.name || user.email || 'U').charAt(0).toUpperCase();
+        initializeApp();
+        setupEventListeners();
+        checkBackendStatus();
+        showToast(endpoint.endsWith('/register') ? 'Account created.' : 'Welcome back.', 'success', 2500);
+    } catch (requestError) {
+        error.textContent = requestError.response?.data?.error || 'Authentication failed. Please try again.';
+        error.hidden = false;
+    } finally {
+        button.disabled = false;
+        button.textContent = button.dataset.label || 'Continue';
+    }
+}
+
+async function logout() {
+    try { await axios.post('/api/auth/logout', {}, requestConfig()); } catch (error) { console.warn('Logout request failed', error); }
+    window.location.reload();
+}
+
 // Initialize the application
 function initializeApp() {
-    console.log('🚀 CleanDataPro initialized');
+    if (appInitialized) return;
+    appInitialized = true;
+    console.log('CleanDataPro initialized');
     setupNavigationMenu();
     setupFileHandling();
     loadHistory();
@@ -119,20 +223,20 @@ function initializeApp() {
 
 // Setup navigation menu
 function setupNavigationMenu() {
-    const navItems = document.querySelectorAll('.nav-item, [data-page]');
+    const navItems = document.querySelectorAll('.nav-item');
     const pages = document.querySelectorAll('.page');
-    
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
+    const navigate = (item, activateNav = true) => {
             const pageName = item.dataset.page;
+            const page = document.getElementById(`${pageName}-page`);
+            if (!page) return;
             
             // Remove active class from all nav items and pages
             navItems.forEach(i => i.classList.remove('active'));
             pages.forEach(p => p.classList.remove('active'));
             
             // Add active class to clicked item and corresponding page
-            item.classList.add('active');
-            document.getElementById(`${pageName}-page`).classList.add('active');
+            if (activateNav) item.classList.add('active');
+            page.classList.add('active');
             
             // Refresh page-specific content
             if (pageName === 'history') {
@@ -140,7 +244,10 @@ function setupNavigationMenu() {
             } else if (pageName === 'analytics') {
                 refreshAnalytics();
             }
-        });
+    };
+    navItems.forEach(item => item.addEventListener('click', () => navigate(item)));
+    document.querySelectorAll('.empty-state [data-page]').forEach(item => {
+        item.addEventListener('click', () => navigate(item, false));
     });
 }
 
@@ -152,8 +259,8 @@ function setupFileHandling() {
     
     // Click to select file
     fileInputBtn.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInput.click(); }
+    uploadArea.addEventListener('click', (event) => {
+        if (!event.target.closest('button')) fileInput.click();
     });
     
     fileInput.addEventListener('change', (e) => {
@@ -166,21 +273,15 @@ function setupFileHandling() {
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadArea.classList.add('dragover');
-        uploadArea.style.borderColor = 'var(--success)';
-        uploadArea.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
     });
     
     uploadArea.addEventListener('dragleave', () => {
         uploadArea.classList.remove('dragover');
-        uploadArea.style.borderColor = 'var(--primary)';
-        uploadArea.style.backgroundColor = 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)';
     });
     
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
-        uploadArea.style.borderColor = 'var(--primary)';
-        uploadArea.style.backgroundColor = 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)';
         
         if (e.dataTransfer.files.length > 0) {
             handleFileSelect(e.dataTransfer.files[0]);
@@ -203,7 +304,7 @@ async function handleFileSelect(file) {
     try {
         showLoading(true);
         const response = await axios.post(`${API_BASE}/upload`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+            headers: { 'Content-Type': 'multipart/form-data', ...csrfHeaders() }
         });
         
         const data = response.data;
@@ -234,7 +335,7 @@ function displayFilePreview(data) {
         `${data.shape.rows.toLocaleString()} × ${data.shape.columns}`;
     
     // Show toast notification
-    showToast(`✅ File uploaded: ${data.filename}`, 'success', 2000);
+    showToast(`File uploaded: ${data.filename}`, 'success', 2000);
     
     // Fill missing values table
     const missingTable = document.querySelector('#missing-table tbody');
@@ -300,7 +401,8 @@ async function processFile() {
     
     const formData = new FormData();
     formData.append('file', currentFile);
-    
+    let progressInterval = null;
+
     try {
         const previewSection = document.getElementById('preview-section');
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -311,7 +413,7 @@ async function processFile() {
         // Simulate progress
         updateProgress(0, 'Initializing...');
         let progress = 0;
-        const progressInterval = setInterval(() => {
+        progressInterval = setInterval(() => {
             progress += Math.random() * 15;
             if (progress < 90) {
                 updateProgress(progress, 'Processing your data...');
@@ -319,11 +421,12 @@ async function processFile() {
         }, 200);
         
         const response = await axios.post(`${API_BASE}/process`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+            headers: { 'Content-Type': 'multipart/form-data', ...csrfHeaders() },
             timeout: 120000
         });
         
         clearInterval(progressInterval);
+        progressInterval = null;
         updateProgress(100, 'Complete!');
         
         lastResult = response.data.data;
@@ -332,9 +435,10 @@ async function processFile() {
         setTimeout(() => {
             displayResults(lastResult);
             loadingSpinner.hidden = true;
-            showToast('✅ File processed successfully!', 'success', 3000);
+            showToast('File processed successfully.', 'success', 3000);
         }, 300);
     } catch (error) {
+        if (progressInterval) clearInterval(progressInterval);
         showError(`Error processing file: ${error.response?.data?.error || error.message}`);
         const loadingSpinner = document.getElementById('loading-spinner');
         loadingSpinner.hidden = true;
@@ -527,7 +631,7 @@ async function loadHistory() {
         if (runs.length === 0) {
             tbody.insertAdjacentHTML('beforeend', 
                 '<tr class="empty-row"><td colspan="5">No processing history found</td></tr>');
-            showToast('📜 No history available yet', 'info', 2000);
+            showToast('No history available yet', 'info', 2000);
             return;
         }
         
@@ -544,12 +648,11 @@ async function loadHistory() {
             tbody.insertAdjacentHTML('beforeend', row);
         });
         
-        showToast(`✅ Loaded ${runs.length} history records`, 'success', 2000);
+        showToast(`Loaded ${runs.length} history records`, 'success', 2000);
     } catch (error) {
         console.error('Error loading history:', error);
-        showError('Failed to load history: ' + error.message);
         const tbody = document.getElementById('history-tbody');
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Error loading history</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">History is temporarily unavailable. You can still upload and clean a file.</td></tr>';
     }
 }
 
@@ -797,14 +900,14 @@ function setupEventListeners() {
             try {
                 const response = await axios.get(`${API_BASE}/test-backend`);
                 if (response.data.success) {
-                    resultDiv.innerHTML = '✅ Connection successful!';
+                    resultDiv.textContent = 'Connection successful.';
                     resultDiv.style.color = 'green';
                 } else {
-                    resultDiv.innerHTML = '❌ ' + response.data.message;
+                    resultDiv.textContent = response.data.message || 'Connection failed.';
                     resultDiv.style.color = 'red';
                 }
             } catch (error) {
-                resultDiv.innerHTML = '❌ ' + (error.response?.data?.message || error.message);
+                resultDiv.textContent = error.response?.data?.message || 'Connection failed.';
                 resultDiv.style.color = 'red';
             }
         });
@@ -831,29 +934,16 @@ function showToast(message, type = 'info', duration = 4000) {
     }
     
     const toast = document.createElement('div');
-    
-    const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3157d5' };
-    const icons = { success: '✓', error: '✕', warning: '!', info: 'i' };
-    
-        toast.style.cssText = `
-        background: white;
-        padding: 16px 24px;
-        border-radius: 12px;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        border-left: 4px solid ${colors[type]};
-        animation: slideInRight 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-weight: 600;
-        color: #333;
-        font-size: 14px;
-    `;
-    
-    toast.innerHTML = `
-        <span style="color: ${colors[type]}; font-weight: bold; font-size: 18px;">${icons[type]}</span>
-        <span>${escapeHtml(message)}</span>
-    `;
+    const icons = { success: '✓', error: '×', warning: '!', info: 'i' };
+    toast.className = `toast ${['success', 'error', 'warning', 'info'].includes(type) ? type : 'info'}`;
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = icons[type] || icons.info;
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.append(icon, text);
     
     container.appendChild(toast);
     

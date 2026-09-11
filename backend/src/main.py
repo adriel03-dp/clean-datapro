@@ -15,12 +15,17 @@ from . import config as cfg
 
 app = FastAPI(title="CleanDataPro Backend")
 
+configured_origin = os.getenv("FRONTEND_ORIGIN", "https://clean-datapro-web.onrender.com")
+allowed_origins = [origin.strip().rstrip("/") for origin in configured_origin.split(",") if origin.strip()]
+if os.getenv("ENVIRONMENT", "").lower() in {"development", "dev", "local"}:
+    allowed_origins.extend(["http://localhost:5000", "http://127.0.0.1:5000"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=sorted(set(allowed_origins)),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(process_router.router, prefix="/api")

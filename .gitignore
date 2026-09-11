@@ -1,0 +1,22 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local configuration and generated runtime data
+.env
+.env.*
+!*.env.example
+data/raw/*
+data/processed/*
+reports/*
+frontend/temp_uploads/
+*.pdf
+*_summary.json
+
+# Keep directory placeholders versioned
+!data/raw/.gitkeep

@@ -6,7 +6,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.95+-009688.svg)](https://fastapi.tiangolo.com)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.24+-FF4B4B.svg)](https://streamlit.io)
+[![Flask](https://img.shields.io/badge/Flask-3.x-000000.svg)](https://flask.palletsprojects.com)
 [![License](https://img.shields.io/badge/license-Open%20Source-green.svg)](LICENSE)
 
 </div>
@@ -43,7 +43,7 @@
 - Reports duplicate count and percentage for audit trail
 
 **Smart Type Inference** *(Custom algorithm + Pandas `to_numeric()`)*
-- Detects numeric columns with >80% valid numeric values
+- Detects mostly numeric columns (at least two numeric values and 60% valid numeric values)
 - Safe type conversion with error handling (`errors='coerce'`)
 - Handles mixed-type columns and type inconsistencies
 
@@ -75,11 +75,11 @@
 - Complete metadata: rows, columns, operations, timestamps
 - Nested structure: `missing_summary_before/after` arrays
 
-**Interactive Dashboard** *(Streamlit 1.24+)*
-- Real-time file upload with `st.file_uploader()`
-- Processing status tracking with session state
-- Plotly visualizations: `plotly.express` and `plotly.graph_objects`
-- Responsive design with Streamlit's column layout
+**Interactive Dashboard** *(Flask + vanilla JavaScript)*
+- Responsive authenticated workspace with CSV upload and drag-and-drop
+- Before/after quality preview with Chart.js analytics
+- Clean CSV, PDF, and JSON downloads
+- Per-user history backed by MongoDB
 
 ---
 
@@ -199,10 +199,11 @@
 
 ## 🚀 Deployment
 
-**Recommended Platforms:**
-- **Frontend:** [Streamlit Cloud](https://streamlit.io/cloud) - Free, auto-deploy from GitHub
-- **Backend:** [Railway](https://railway.app) or [Render](https://render.com) - Easy Docker deployments
-- **Database:** [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) - Free tier available
+**Render Blueprint:**
+- **Frontend:** `clean-datapro-web` (Flask/Gunicorn)
+- **Backend:** `clean-datapro-api` (FastAPI/Uvicorn)
+- **Database:** [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) is required for accounts, history, and artifact ownership
+- Deploy both services from `render.yaml`, then set `MONGODB_URI` on the backend
 
 **Deployment Guide:** See [DEPLOYMENT_STEPS.md](DEPLOYMENT_STEPS.md) for step-by-step instructions (~20 minutes total)
 
@@ -252,10 +253,10 @@ python -m uvicorn src.main:app --reload --port 8000
 
 # Terminal 2: Frontend
 cd frontend
-streamlit run streamlit_app.py
+python web_app.py
 ```
 
-Access at: **http://localhost:8501** (Frontend) | **http://localhost:8000/docs** (API)
+Access at: **http://localhost:5000** (Frontend) | **http://localhost:8000/docs** (API)
 
 ---
 
@@ -313,8 +314,8 @@ docker run -p 8000:8000 cleandatapro-backend
 ```
 clean-datapro/
 ├── backend/          # FastAPI backend (src/, routes/, models/)
-├── frontend/         # Streamlit web interface
-├── src/              # Core library modules
+├── frontend/         # Flask web interface and static assets
+├── src/              # Root compatibility exports for the cleaning library
 ├── tests/            # Test suite
 ├── data/             # Raw/processed files (gitignored)
 └── reports/          # Generated reports (gitignored)

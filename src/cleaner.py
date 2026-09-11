@@ -2,6 +2,9 @@ from typing import List, Any
 import pandas as pd
 import numpy as np
 
+# Keep root-level tests and scripts aligned with the production implementation.
+from backend.src.cleaner import clean_csv, clean_dataframe  # noqa: E402,F401
+
 
 def _convert_numpy_types(obj: Any) -> Any:
     """Recursively convert numpy types to native Python types for JSON serialization."""

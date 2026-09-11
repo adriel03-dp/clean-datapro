@@ -50,3 +50,14 @@ def test_clean_dataframe_fills_missing():
     assert cleaned.isna().sum().sum() == 0
     # Should have found and fixed 3 issues (2 in name, 1 in age)
     assert summary["missing_before_total"] == 3
+
+
+def test_clean_dataframe_coerces_mostly_numeric_text():
+    """Pandas string dtypes with one malformed value should be repaired."""
+    df = pd.DataFrame({"score": ["10", "20", "bad", None]})
+
+    cleaned, summary = clean_dataframe(df)
+
+    assert cleaned["score"].dtype.kind in "fi"
+    assert cleaned["score"].tolist() == [10.0, 20.0, 15.0, 15.0]
+    assert summary["missing_after_total"] == 0
