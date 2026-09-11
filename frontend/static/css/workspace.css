@@ -603,6 +603,11 @@ body.dark-mode .data-table tbody tr:hover td {
     color: #f7f9fc;
 }
 
+.status-dot.updating {
+    background: #e3a641;
+    box-shadow: 0 0 0 4px rgba(227, 166, 65, 0.14);
+}
+
 body.dark-mode .pill {
     background: #18253a;
 }

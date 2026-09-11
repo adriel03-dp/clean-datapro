@@ -205,6 +205,8 @@ def _public_processing_error(response, fallback):
             pass
     if response.status_code in (401, 403):
         return "Your session has expired. Sign in again and retry."
+    if response.status_code == 404:
+        return "The processing service is still updating. Please retry in a few minutes."
     return fallback
 
 
@@ -307,7 +309,18 @@ def test_backend():
     try:
         resp = requests.get(f"{BACKEND_BASE}/healthz", timeout=5)
         if resp.status_code == 200:
-            return jsonify({"success": True, "message": "Backend is online"})
+            health = resp.json()
+            if health.get("processing_mode") == "background-jobs":
+                return jsonify({
+                    "success": True,
+                    "state": "online",
+                    "message": "Backend is online",
+                })
+            return jsonify({
+                "success": False,
+                "state": "updating",
+                "message": "The processing service update is still deploying.",
+            }), 503
         app.logger.warning("Backend health check returned %s", resp.status_code)
         return jsonify({
             "success": False,

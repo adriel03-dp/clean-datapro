@@ -935,13 +935,9 @@ function drawAnalyticsCharts() {
 async function checkBackendStatus() {
     try {
         const response = await axios.get(`${API_BASE}/test-backend`);
-        if (response.data.success) {
-            setBackendStatus(true);
-        } else {
-            setBackendStatus(false);
-        }
+        setBackendStatus(Boolean(response.data.success), response.data.state);
     } catch (error) {
-        setBackendStatus(false);
+        setBackendStatus(false, error.response?.data?.state);
     }
     
     // Check again every 30 seconds
@@ -949,16 +945,18 @@ async function checkBackendStatus() {
 }
 
 // Set backend status indicator
-function setBackendStatus(online) {
+function setBackendStatus(online, state = 'offline') {
     const dot = document.getElementById('backend-status');
     const text = document.getElementById('backend-text');
-    
+    dot.classList.remove('online', 'offline', 'updating');
+
     if (online) {
         dot.classList.add('online');
-        dot.classList.remove('offline');
         text.textContent = 'Backend Online';
+    } else if (state === 'updating') {
+        dot.classList.add('updating');
+        text.textContent = 'API Updating';
     } else {
-        dot.classList.remove('online');
         dot.classList.add('offline');
         text.textContent = 'Backend Offline';
     }
