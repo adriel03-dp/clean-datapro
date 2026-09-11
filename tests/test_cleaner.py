@@ -61,3 +61,18 @@ def test_clean_dataframe_coerces_mostly_numeric_text():
     assert cleaned["score"].dtype.kind in "fi"
     assert cleaned["score"].tolist() == [10.0, 20.0, 15.0, 15.0]
     assert summary["missing_after_total"] == 0
+
+
+def test_clean_dataframe_preserves_dates_and_fills_all_placeholders():
+    df = pd.DataFrame(
+        {
+            "date": ["2024-01-01", "2024-02-01", ""],
+            "empty": ["", "UNKNOWN", "N/A"],
+        }
+    )
+
+    cleaned, summary = clean_dataframe(df)
+
+    assert str(cleaned["date"].dtype).startswith("datetime")
+    assert cleaned.isna().sum().sum() == 0
+    assert summary["missing_after_total"] == 0

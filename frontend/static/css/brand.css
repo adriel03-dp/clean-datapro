@@ -1,0 +1,19 @@
+.brand-mark.logo {
+    align-items: center;
+    background: transparent;
+    padding: 0;
+    overflow: hidden;
+}
+
+.brand-mark.logo .brand-logo {
+    display: block;
+    width: 31px;
+    height: 31px;
+}
+
+@media (max-width: 680px) {
+    .brand-mark.logo .brand-logo {
+        width: 31px;
+        height: 31px;
+    }
+}

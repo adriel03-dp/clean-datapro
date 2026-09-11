@@ -64,21 +64,29 @@ def _is_missing_value(val: Any) -> bool:
     return False
 
 
+def _missing_mask(series: pd.Series) -> pd.Series:
+    """Build a vectorized missing/placeholder mask for a CSV column."""
+    mask = series.isna()
+    if pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series):
+        normalized = series.astype("string").str.strip().str.lower()
+        mask = mask | normalized.isin(PLACEHOLDER_VALUES)
+    return mask.astype(bool)
+
+
 def _is_numeric_column(s: pd.Series) -> bool:
     """Detect if a column should be numeric by checking non-missing values."""
-    non_missing = s[~s.apply(lambda x: _is_missing_value(x))]
-    
+    non_missing = s[~_missing_mask(s)]
+
     if non_missing.empty:
         return False
+
+    # Datetime values can be represented as integers internally, but must
+    # remain dates so the date-specific fill strategy can run.
+    if pd.api.types.is_datetime64_any_dtype(s):
+        return False
     
-    # Try to convert to numeric
-    numeric_count = 0
-    for val in non_missing:
-        try:
-            float(val)
-            numeric_count += 1
-        except (ValueError, TypeError):
-            pass
+    # Use pandas' native conversion instead of a Python loop over every cell.
+    numeric_count = int(pd.to_numeric(non_missing, errors="coerce").notna().sum())
     
     # A mostly numeric column with one malformed value should still be cleaned
     # as numeric. Require at least two numeric observations and a 60% ratio for
@@ -87,15 +95,16 @@ def _is_numeric_column(s: pd.Series) -> bool:
     return numeric_count >= 2 and ratio >= 0.6
 
 
-def _replace_placeholders(df: pd.DataFrame) -> pd.DataFrame:
+def _replace_placeholders(df: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
     """Replace placeholder values with actual NaN so they can be properly filled."""
-    working = df.copy()
+    # The cleaning pipeline can opt out of copying because it owns the frame.
+    working = df.copy() if copy else df
     
     for col in working.columns:
         s = working[col]
         # Pandas 3 may infer CSV text as ``str``/StringDtype rather than object.
         # Apply the same placeholder rule to every scalar column type.
-        mask = s.map(_is_missing_value)
+        mask = _missing_mask(s)
         if bool(mask.any()):
             working.loc[mask, col] = np.nan
     
@@ -104,18 +113,30 @@ def _replace_placeholders(df: pd.DataFrame) -> pd.DataFrame:
 
 def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Parse mostly-date text columns so date-specific filling can run."""
-    working = df.copy()
+    working = df
+    copied = False
     for col in working.columns:
         series = working[col]
         if not pd.api.types.is_string_dtype(series):
             continue
-        non_missing = series[~series.map(_is_missing_value)]
+        non_missing = series[~_missing_mask(series)]
         if len(non_missing) < 2:
+            continue
+        # Sampling is enough to identify date-shaped text and keeps large CSVs
+        # from being parsed repeatedly during type detection.
+        sample = non_missing.iloc[:5000]
+        # Numeric identifiers and year columns are not dates just because
+        # pandas can parse them. Keeping them numeric prevents an expensive,
+        # surprising conversion on large health/finance exports.
+        if sample.astype("string").str.fullmatch(r"[+-]?\d+(?:\.\d+)?").all():
             continue
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
-            parsed = pd.to_datetime(non_missing, errors="coerce")
+            parsed = pd.to_datetime(sample, errors="coerce")
         if parsed.notna().mean() >= 0.8:
+            if not copied:
+                working = df.copy()
+                copied = True
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
                 working[col] = pd.to_datetime(series, errors="coerce")
@@ -134,24 +155,23 @@ def analyze_missing_summary(df: pd.DataFrame, top_values: int = 3) -> pd.DataFra
     for col in df.columns:
         s = df[col]
         # Count both actual NaN and placeholder values
-        missing = int(s.apply(lambda x: _is_missing_value(x)).sum())
+        missing_mask = _missing_mask(s)
+        missing = int(missing_mask.sum())
         missing_pct = round((missing / total) * 100, 2) if total else 0.0
         dtype = str(s.dtype)
         
         # Count unique non-missing values
-        non_missing = s[~s.apply(lambda x: _is_missing_value(x))]
+        non_missing = s[~missing_mask]
         unique_count = int(non_missing.nunique())
 
         # ALSO: Detect type inconsistencies in columns that SHOULD be numeric
         type_issues = 0
-        if pd.api.types.is_string_dtype(s) and _is_numeric_column(s):
+        if _is_numeric_column(s):
             # This is a numeric column with type issues
             # Count non-numeric values (excluding missing values already counted)
-            for val in non_missing:
-                try:
-                    float(val)
-                except (ValueError, TypeError):
-                    type_issues += 1
+            type_issues = int(
+                pd.to_numeric(non_missing, errors="coerce").isna().sum()
+            )
         
         # Total issues = missing + type issues
         total_issues = missing + type_issues
@@ -188,9 +208,8 @@ def analyze_missing_summary(df: pd.DataFrame, top_values: int = 3) -> pd.DataFra
 def _fill_column(s: pd.Series) -> pd.Series:
     """Fill missing values (NaN and placeholders) based on dtype heuristics."""
     # Remove placeholder values first
-    s = s.copy()
-    mask = s.apply(lambda x: _is_missing_value(x))
-    s[mask] = np.nan
+    mask = _missing_mask(s)
+    s = s.mask(mask, np.nan)
     
     if pd.api.types.is_numeric_dtype(s):
         # Use median for numeric columns (robust to outliers)
@@ -206,7 +225,9 @@ def _fill_column(s: pd.Series) -> pd.Series:
     
     # Treat as categorical/object
     if s.dropna().empty:
-        return s.fillna("Unknown")
+        # Do not use the literal "Unknown" here: it is intentionally treated
+        # as a missing placeholder by the quality checks.
+        return s.fillna("Not provided")
     
     try:
         mode = s.mode(dropna=True)
@@ -215,7 +236,7 @@ def _fill_column(s: pd.Series) -> pd.Series:
     except Exception:
         pass
     
-    return s.fillna("Unknown")
+    return s.fillna("Not provided")
 
 
 def clean_dataframe(
@@ -249,48 +270,8 @@ def clean_dataframe(
     # Analyze BEFORE replacing placeholders to show what was actually wrong
     missing_summary_before = analyze_missing_summary(df)
     
-    # Count TOTAL ISSUES in the ORIGINAL data BEFORE any cleaning
-    # = Missing values (NaN + placeholders) + Type inconsistencies in numeric columns
-    total_issues = 0
-    for col in df.columns:
-        s = df[col]
-        # Count missing (NaN + placeholders)
-        missing = int(s.apply(lambda x: _is_missing_value(x)).sum())
-        total_issues += missing
-        
-        # ALSO count type issues in numeric columns (non-numeric values that should be numeric)
-        if col in numeric_cols_to_fix and s.dtype == object:
-            non_missing = s[~s.apply(lambda x: _is_missing_value(x))]
-            for val in non_missing:
-                try:
-                    float(val)
-                except (ValueError, TypeError):
-                    # This value couldn't convert to numeric in a numeric column
-                    total_issues += 1
-    
-    missing_before = total_issues
-    
     # Now replace placeholder values with NaN
-    working = _replace_placeholders(df.copy())
-    
-    # Count TOTAL issues:
-    # = Missing values (NaN + placeholders) + Type inconsistencies in numeric columns
-    total_issues = 0
-    for col in working.columns:
-        s = working[col]
-        # Count missing (NaN) values
-        missing = s.isna().sum()
-        total_issues += missing
-        
-        # ALSO count type issues in numeric columns (non-numeric values that should be numeric)
-        if col in numeric_cols_to_fix:
-            non_missing = s[~s.isna()]
-            for val in non_missing:
-                try:
-                    float(val)
-                except (ValueError, TypeError):
-                    total_issues += 1
-    
+    working = _replace_placeholders(df, copy=False)
     missing_before = int(missing_summary_before["total_issues"].sum())
 
     # Drop exact duplicates if requested
@@ -316,7 +297,7 @@ def clean_dataframe(
     for col in working.columns:
         working[col] = _fill_column(working[col])
 
-    missing_after = int(working.apply(lambda col: col.apply(_is_missing_value)).sum().sum())
+    missing_after = int(sum(_missing_mask(working[col]).sum() for col in working.columns))
     cleaned_rows = len(working)
 
     # Per-column summaries are calculated from the actual cleaned data. Do not
@@ -356,7 +337,7 @@ def clean_csv(
     if not p_in.exists():
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
-    df = _infer_datetime_columns(pd.read_csv(p_in, keep_default_na=False))
+    df = pd.read_csv(p_in, keep_default_na=False, low_memory=False)
     cleaned_df, inner_summary = clean_dataframe(df, drop_duplicates=drop_duplicates)
 
     # ensure output dir exists

@@ -6,23 +6,25 @@
     <meta name="theme-color" content="#f7f8fc">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>CleanData Pro · Data quality workspace</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/brand.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js" defer></script>
 </head>
 <body data-authenticated="{{ 'true' if authenticated else 'false' }}">
     <a class="skip-link" href="#main-content">Skip to workspace</a>
     <section id="auth-screen" class="auth-screen" {% if authenticated %}hidden{% endif %} aria-labelledby="auth-title">
-        <div class="auth-visual"><a class="brand auth-brand" href="/" aria-label="CleanData Pro home"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>CleanData <b>Pro</b></span></a><div class="auth-visual-copy"><p class="eyebrow">DATA QUALITY WORKSPACE</p><h1>Make every row<br>count.</h1><p>Turn messy files into confident decisions with a transparent, repeatable cleaning workflow.</p><div class="auth-promise"><span>01</span><span>Upload once</span><span>02</span><span>Understand more</span></div></div></div>
+        <div class="auth-visual"><a class="brand auth-brand" href="/" aria-label="CleanData Pro home"><span class="brand-mark logo" aria-hidden="true"><img class="brand-logo" src="{{ url_for('static', filename='brand-mark.svg') }}" alt=""></span><span>CleanData <b>Pro</b></span></a><div class="auth-visual-copy"><p class="eyebrow">DATA QUALITY WORKSPACE</p><h1>Make every row<br>count.</h1><p>Turn messy files into confident decisions with a transparent, repeatable cleaning workflow.</p><div class="auth-promise"><span>01</span><span>Upload once</span><span>02</span><span>Understand more</span></div></div></div>
         <div class="auth-card-wrap"><div class="auth-card"><div class="auth-card-header"><p class="eyebrow">WELCOME BACK</p><h2 id="auth-title">Your data, in order.</h2><p>Sign in to continue to your workspace.</p></div><div class="auth-tabs" role="tablist" aria-label="Authentication"><button class="auth-tab active" id="login-tab" role="tab" aria-selected="true" aria-controls="login-form" type="button">Sign in</button><button class="auth-tab" id="signup-tab" role="tab" aria-selected="false" aria-controls="signup-form" type="button">Create account</button></div><form id="login-form" class="auth-form" novalidate><label for="login-email">Email address</label><input id="login-email" name="email" type="email" autocomplete="email" required placeholder="you@company.com"><label for="login-password">Password</label><input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password"><p class="auth-error" id="login-error" role="alert" hidden></p><button class="btn btn-primary" type="submit">Sign in <span>→</span></button></form><form id="signup-form" class="auth-form" novalidate hidden><label for="signup-name">Full name</label><input id="signup-name" name="name" type="text" autocomplete="name" required placeholder="Your name"><label for="signup-email">Email address</label><input id="signup-email" name="email" type="email" autocomplete="email" required placeholder="you@company.com"><label for="signup-password">Password</label><input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"><label for="signup-confirm">Confirm password</label><input id="signup-confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required placeholder="Repeat your password"><p class="auth-error" id="signup-error" role="alert" hidden></p><button class="btn btn-primary" type="submit">Create account <span>→</span></button></form><p class="auth-footnote">By continuing, you agree to use CleanData Pro responsibly.</p></div></div>
     </section>
     <div class="app-shell" {% if not authenticated %}hidden{% endif %}>
         <aside class="sidebar" aria-label="Primary navigation">
             <div>
-                <a class="brand" href="#upload" aria-label="CleanData Pro home"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span><span>CleanData <b>Pro</b></span></a>
+                <a class="brand" href="#upload" aria-label="CleanData Pro home"><span class="brand-mark logo" aria-hidden="true"><img class="brand-logo" src="{{ url_for('static', filename='brand-mark.svg') }}" alt=""></span><span>CleanData <b>Pro</b></span></a>
                 <p class="eyebrow sidebar-eyebrow">DATA QUALITY WORKSPACE</p>
                 <nav class="nav-menu">
                     <button class="nav-item active" data-page="upload" type="button"><span class="nav-icon" aria-hidden="true">↥</span>Upload &amp; clean</button>

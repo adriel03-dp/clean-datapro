@@ -52,6 +52,14 @@ def request_entity_too_large(_error):
 # Ensure upload folder exists
 Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
+
+@app.get("/favicon.ico")
+def favicon():
+    """Serve the same lightweight brand mark for browsers requesting ICO."""
+    return send_file(
+        Path(app.static_folder) / "favicon.svg", mimetype="image/svg+xml"
+    )
+
 @app.route("/")
 def index():
     """Home page"""
@@ -230,6 +238,7 @@ def process():
     except ValueError:
         return jsonify({"error": "The backend returned an invalid response."}), 502
     except Exception:
+        app.logger.exception("Unexpected error while proxying CSV processing")
         return jsonify({"error": "Unable to process this file."}), 500
 
 

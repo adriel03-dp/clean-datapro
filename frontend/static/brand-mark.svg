@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CleanData Pro">
+  <rect width="64" height="64" rx="16" fill="#18202e"/>
+  <path d="M16 20h21M16 32h28M16 44h15" fill="none" stroke="#f7f8fc" stroke-linecap="round" stroke-width="5"/>
+  <path d="m46 13 1.9 6.1L54 21l-6.1 1.9L46 29l-1.9-6.1L38 21l6.1-1.9L46 13Z" fill="#f0a35b"/>
+  <path d="m40 38 1.2 3.8L45 43l-3.8 1.2L40 48l-1.2-3.8L35 43l3.8-1.2L40 38Z" fill="#3157d5"/>
+</svg>
